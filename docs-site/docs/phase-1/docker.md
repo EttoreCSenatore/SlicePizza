@@ -1,7 +1,9 @@
 # Phase 1 — Docker
 
 Phase 1 runs everything with Docker Compose: the API container and a PostgreSQL
-16 container.
+16 container. The step-by-step commands are in the
+[root README](../../../README.md#running-the-system-phase-1); this page explains
+what happens behind them.
 
 ## Starting the stack
 
@@ -10,9 +12,17 @@ cp .env.example .env
 docker compose up --build -d --wait
 ```
 
-`--wait` returns only when the containers are healthy. Without it, `-d` returns
-as soon as the containers start, while the API is still waiting for the
-database and seeding the menu.
+Compose starts the containers in order:
+
+1. **Postgres** starts first. Its healthcheck (`pg_isready`) reports healthy
+   once it accepts connections.
+2. **The API** starts only after that, because of
+   `depends_on: condition: service_healthy`. On startup it creates the tables,
+   seeds the menu and then opens port 8000.
+
+Without `--wait`, `up -d` returns as soon as the API container has *started*,
+while it may still be creating tables or seeding the menu, so an immediate
+`curl` can fail. `--wait` returns only when the API's own healthcheck passes.
 
 Check that the API is up and can reach the database:
 
@@ -20,6 +30,18 @@ Check that the API is up and can reach the database:
 curl http://localhost:8000/health
 # {"status":"ok","database":"ok"}
 ```
+
+## Ports
+
+| Service | On your machine | Configurable with |
+|---|---|---|
+| API | `127.0.0.1:8000` | — |
+| Postgres | `127.0.0.1:5432` | `POSTGRES_HOST_PORT` in `.env` |
+
+Both are bound to `127.0.0.1` only, so they are not exposed to your network.
+If you already run PostgreSQL on your machine, `docker compose up` fails with
+**"port is already allocated"**: set another port in `.env`, for example
+`POSTGRES_HOST_PORT=5433`.
 
 ## Persistence
 
@@ -34,10 +56,11 @@ docker compose up -d --wait
 
 To inspect the volume: `docker volume inspect slicepizza_pgdata`.
 
-The order you created before `down` is still available afterwards. Using
-`docker compose down -v` deletes the volume and with it all data.
+`docker compose down -v` deletes the volume and with it all data. You need it
+when the database schema changes: the API creates missing tables on startup,
+but it never changes a table that already exists.
 
 ## Seeding
 
-On startup the API creates the schema and seeds the menu if it is empty, so
+On startup the API seeds the menu only if the `pizzas` table is empty, so
 restarting the stack does not duplicate pizzas.
