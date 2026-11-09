@@ -1,5 +1,7 @@
 """Bad input must be rejected with 422, never reach the database and become a 500."""
 
+import json
+
 import pytest
 
 from app.schemas import INT32_MAX, MAX_ITEMS_PER_ORDER, MAX_PIZZAS_PER_ORDER
@@ -60,6 +62,19 @@ def test_total_pizzas_are_capped(client):
 @pytest.mark.parametrize("field", ["name", "phone", "address"])
 def test_nul_character_is_rejected(client, field):
     response = client.post("/orders", json=order_with(**{field: "a\u0000b"}))
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("field", ["name", "phone", "address"])
+def test_lone_surrogate_is_rejected(client, field):
+    # JSON accepts "\ud800", but it is not valid Unicode and cannot be stored.
+    # json.dumps escapes it as \ud800 (httpx's json= would fail to encode it).
+    body = json.dumps(order_with(**{field: "a\ud800b"}))
+
+    response = client.post(
+        "/orders", content=body, headers={"Content-Type": "application/json"}
+    )
 
     assert response.status_code == 422
 

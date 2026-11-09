@@ -65,9 +65,12 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 
 set -a; source ../.env; set +a   # load POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-export POSTGRES_HOST=localhost   # Compose publishes Postgres on 127.0.0.1:5432
+export POSTGRES_HOST=localhost   # Compose publishes Postgres on 127.0.0.1
+export POSTGRES_PORT=${POSTGRES_HOST_PORT:-5432}
 uvicorn app.main:app --reload
 ```
+
+If you already run Postgres on port 5432, `docker compose up` fails with "port is already allocated". Set another port in `.env`, for example `POSTGRES_HOST_PORT=5433`.
 
 For a quick run without Postgres, use SQLite explicitly:
 
@@ -96,7 +99,13 @@ TEST_DATABASE_URL=postgresql+psycopg://test:test@localhost:5433/slicepizza_test 
 docker rm -f slicepizza-test-db
 ```
 
-The variable is `TEST_DATABASE_URL`, not `DATABASE_URL`, on purpose: the tests drop all tables, so they must never point at your development database.
+The tests drop all tables, so `tests/conftest.py` protects your data:
+
+- they read only `TEST_DATABASE_URL`, never `DATABASE_URL` or the `POSTGRES_*` variables (it clears them);
+- an empty `TEST_DATABASE_URL` means SQLite;
+- a Postgres database must have `test` in its name, or the tests refuse to run.
+
+The concurrency tests (two requests changing the same order at once) need Postgres row locks, so they only run against Postgres.
 
 ## Structure
 
@@ -110,8 +119,12 @@ api/
 │   ├── schemas.py     # Pydantic request/response schemas
 │   └── seed.py        # default menu
 ├── tests/
-│   ├── conftest.py
-│   └── test_api.py
+│   ├── conftest.py        # test database setup and safety checks
+│   ├── test_api.py        # routes, status flow, concurrency
+│   ├── test_validation.py # invalid input → 422
+│   ├── test_errors.py     # database errors → 503 or 500
+│   ├── test_config.py     # environment variables
+│   └── test_startup.py    # schema creation and menu seed
 ├── Dockerfile
 ├── requirements.txt
 └── requirements-dev.txt
@@ -122,14 +135,25 @@ api/
 | Variable | Purpose | Example |
 |---|---|---|
 | `POSTGRES_HOST` | Postgres host | `db` (Compose) or `localhost` |
-| `POSTGRES_PORT` | Postgres port (optional) | `5432` |
+| `POSTGRES_PORT` | Postgres port (optional, default `5432`) | `5432` |
 | `POSTGRES_USER` | Database user | `slicepizza` |
-| `POSTGRES_PASSWORD` | Database password, any characters, no encoding needed | `p@ss:w/rd` |
+| `POSTGRES_PASSWORD` | Database password (optional), any characters, no encoding needed | `p@ss:w/rd` |
 | `POSTGRES_DB` | Database name | `slicepizza` |
 | `DATABASE_URL` | Optional full URL; takes precedence over the variables above | `sqlite:///./slicepizza.db` |
 
 Docker Compose sets the `POSTGRES_*` variables from the root `.env`. The parts are passed separately, never pasted into a URL, so the password needs no URL-encoding.
 
+`DATABASE_URL` and `TEST_DATABASE_URL` **are** URLs: special characters in their password must be percent-encoded (`@` → `%40`, `:` → `%3A`, `/` → `%2F`, `#` → `%23`, `%` → `%25`). Prefer the `POSTGRES_*` variables when the password has such characters.
+
+Compose-only variable (root `.env`): `POSTGRES_HOST_PORT`, the port on your machine where Postgres is published (default `5432`).
+
 ## Schema note
 
 The tables are created on startup with `Base.metadata.create_all()` and the menu is seeded if the `pizzas` table is empty. This is deliberate for Phase 1; see [ADR 0002](../docs/adr/0002-sqlalchemy-and-schema-creation.md). Migrations (Alembic) arrive when the schema starts to change in production.
+
+`create_all()` only creates **missing** tables: it never changes a table that already exists. If you pull a change to `models.py` (a new column, index or type) and your database volume is older, the change is not applied. Until Alembic arrives, recreate the local database (this deletes its data):
+
+```bash
+docker compose down -v
+docker compose up --build -d --wait
+```

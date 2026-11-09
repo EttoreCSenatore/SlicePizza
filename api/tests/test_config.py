@@ -40,10 +40,51 @@ def test_password_with_special_characters_needs_no_encoding(env):
     assert make_url(url.render_as_string(hide_password=False)).password == password
 
 
-def test_postgres_host_requires_the_other_variables(env):
+def postgres_parts(env, **overrides):
+    values = {
+        "POSTGRES_HOST": "db",
+        "POSTGRES_USER": "slicepizza",
+        "POSTGRES_PASSWORD": "secret",
+        "POSTGRES_DB": "slicepizza",
+        **overrides,
+    }
+    for name, value in values.items():
+        env.setenv(name, value)
+
+
+def test_postgres_host_requires_user_and_database(env):
     env.setenv("POSTGRES_HOST", "db")
 
     with pytest.raises(ConfigError, match="POSTGRES_USER"):
+        database_url_from_env()
+
+
+def test_password_is_optional(env):
+    # Without a password, psycopg uses PGPASSWORD, ~/.pgpass or trust auth.
+    postgres_parts(env, POSTGRES_PASSWORD="")
+
+    assert database_url_from_env().password is None
+
+
+@pytest.mark.parametrize("port", ["", None])
+def test_empty_or_missing_port_uses_the_default(env, port):
+    postgres_parts(env)
+    if port is not None:
+        env.setenv("POSTGRES_PORT", port)
+
+    assert database_url_from_env().port == 5432
+
+
+def test_custom_port(env):
+    postgres_parts(env, POSTGRES_PORT="5433")
+
+    assert database_url_from_env().port == 5433
+
+
+def test_invalid_port_is_a_config_error(env):
+    postgres_parts(env, POSTGRES_PORT="abc")
+
+    with pytest.raises(ConfigError, match="POSTGRES_PORT"):
         database_url_from_env()
 
 

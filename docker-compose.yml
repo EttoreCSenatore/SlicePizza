@@ -13,8 +13,9 @@ services:
       - pgdata:/var/lib/postgresql/data
     # Loopback only: lets you connect from your machine (psql, DBeaver or the API
     # running outside Docker) without exposing Postgres to the network.
+    # If you already run Postgres on 5432, set POSTGRES_HOST_PORT in .env.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     healthcheck:
       # -h 127.0.0.1 checks TCP, like the API does. Without it, pg_isready uses the
       # Unix socket and reports ready during first-boot init, before Postgres

@@ -42,6 +42,9 @@ class Pizza(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    # Fetch server-generated values (created_at, updated_at) with RETURNING in
+    # the same INSERT/UPDATE, instead of a separate SELECT afterwards.
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())

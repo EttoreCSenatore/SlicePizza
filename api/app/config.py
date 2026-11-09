@@ -16,6 +16,14 @@ def _require(name: str) -> str:
     return value
 
 
+def _port() -> int:
+    value = os.getenv("POSTGRES_PORT") or "5432"  # empty means "use the default"
+    try:
+        return int(value)
+    except ValueError:
+        raise ConfigError(f"POSTGRES_PORT must be a number, got {value!r}.") from None
+
+
 def database_url_from_env() -> URL:
     """Build the database URL from the environment.
 
@@ -23,10 +31,14 @@ def database_url_from_env() -> URL:
        ``sqlite:///./slicepizza.db`` for a quick local run. A plain
        ``postgresql://`` URL is switched to the psycopg 3 driver that the
        project installs.
-    2. Otherwise ``POSTGRES_HOST`` plus ``POSTGRES_USER``, ``POSTGRES_PASSWORD``,
-       ``POSTGRES_DB`` and optionally ``POSTGRES_PORT``. Docker Compose uses
-       this. The parts are passed separately, never pasted into a URL string,
-       so the password can contain any character without URL-encoding.
+       Being a URL, special characters in its password must be percent-encoded
+       (``@`` becomes ``%40``).
+    2. Otherwise ``POSTGRES_HOST`` plus ``POSTGRES_USER`` and ``POSTGRES_DB``,
+       and optionally ``POSTGRES_PASSWORD`` and ``POSTGRES_PORT``. Docker
+       Compose uses this. The parts are passed separately, never pasted into a
+       URL string, so the password can contain any character without
+       URL-encoding. Without a password, psycopg falls back to PGPASSWORD,
+       ~/.pgpass or trust authentication.
 
     With neither set, the API refuses to start. Silently falling back to a
     local file would hide a broken deployment and lose orders on redeploy.
@@ -42,9 +54,9 @@ def database_url_from_env() -> URL:
         return URL.create(
             drivername="postgresql+psycopg",
             username=_require("POSTGRES_USER"),
-            password=_require("POSTGRES_PASSWORD"),
+            password=os.getenv("POSTGRES_PASSWORD") or None,
             host=os.environ["POSTGRES_HOST"],
-            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            port=_port(),
             database=_require("POSTGRES_DB"),
         )
 

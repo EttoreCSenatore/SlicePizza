@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
-from app.database import Base, engine
+from app.database import get_db
 from app.main import app, is_database_unavailable
 
 
@@ -61,9 +61,41 @@ def test_sqlite_error_is_not_unavailable():
     assert not is_database_unavailable(operational_error(FakeSqliteError()))
 
 
-def test_missing_table_returns_500_not_503():
-    Base.metadata.drop_all(bind=engine)
-    client = TestClient(app, raise_server_exceptions=False)
+class FailingSession:
+    """A session whose every query raises the given error."""
+
+    def __init__(self, error):
+        self.error = error
+
+    def scalars(self, *args, **kwargs):
+        raise self.error
+
+
+@pytest.fixture
+def client_with_db_error():
+    """A client whose database session raises a chosen OperationalError."""
+
+    def use(error):
+        app.dependency_overrides[get_db] = lambda: FailingSession(error)
+        return TestClient(app, raise_server_exceptions=False)
+
+    yield use
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_unreachable_database_returns_503(client_with_db_error, caplog):
+    client = client_with_db_error(operational_error(FakePsycopgError(None)))
+
+    response = client.get("/menu")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database unavailable"}
+    # The cause is logged, so a wrong password can be diagnosed.
+    assert "Database unavailable on GET /menu" in caplog.text
+
+
+def test_other_database_errors_return_500(client_with_db_error):
+    client = client_with_db_error(operational_error(FakePsycopgError("40P01")))
 
     response = client.get("/menu")
 

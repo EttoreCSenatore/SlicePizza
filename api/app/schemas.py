@@ -20,18 +20,24 @@ MAX_ITEMS_PER_ORDER = 20
 MAX_PIZZAS_PER_ORDER = 50
 
 
-def _reject_nul(value: str) -> str:
+def _storable_text(value: str) -> str:
     # Postgres text columns cannot store the NUL character.
     if "\x00" in value:
         raise ValueError("must not contain NUL characters")
+    # JSON allows lone UTF-16 surrogates such as "\ud800", but they are not
+    # valid Unicode text and cannot be encoded for the database driver.
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        raise ValueError("must be valid Unicode text") from None
     return value
 
 
-# Trimmed, non-empty text without NUL characters. "   " is rejected.
+# Trimmed, non-empty text the database can store. "   " is rejected.
 CleanText = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1),
-    AfterValidator(_reject_nul),
+    AfterValidator(_storable_text),
 ]
 
 
