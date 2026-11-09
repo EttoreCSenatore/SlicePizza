@@ -1,40 +1,40 @@
-# API de pedidos
+# Orders API
 
-> ⏳ **Começa na Fase 1.** Veja o [ROADMAP](../docs/ROADMAP.md#fase-1-quero-ver-funcionando-no-seu-computador).
+> ⏳ **Starts in Phase 1.** See the [ROADMAP](../docs/ROADMAP.md#phase-1-i-want-to-see-it-running-on-your-computer).
 
-API em **Python + FastAPI** que expõe o cardápio e recebe os pedidos da pizzaria.
+A **Python + FastAPI** API that serves the menu and receives the pizzeria's orders.
 
-## Rotas planejadas
+## Planned routes
 
-| Método | Rota | O que faz |
+| Method | Route | What it does |
 |---|---|---|
-| GET | `/health` | Diz se a API está viva (usado pelo Docker e pelo monitoramento) |
-| GET | `/cardapio` | Lista as pizzas |
-| POST | `/pedidos` | Cria um pedido |
-| GET | `/pedidos/{id}` | Consulta um pedido |
-| PATCH | `/pedidos/{id}/status` | Muda o status do pedido |
+| GET | `/health` | Tells whether the API is alive (used by Docker and monitoring) |
+| GET | `/menu` | Lists the pizzas |
+| POST | `/orders` | Creates an order |
+| GET | `/orders/{id}` | Gets an order |
+| PATCH | `/orders/{id}/status` | Changes an order's status |
 
-## Estrutura sugerida
+## Suggested structure
 
 ```
 api/
 ├── app/
-│   └── main.py            # rotas da API
+│   └── main.py            # API routes
 ├── tests/
-│   └── test_main.py       # testes automatizados (pytest)
-├── Dockerfile             # como construir a imagem
-├── requirements.txt       # dependências para rodar
-└── requirements-dev.txt   # dependências para desenvolver (inclui pytest)
+│   └── test_main.py       # automated tests (pytest)
+├── Dockerfile             # how to build the image
+├── requirements.txt       # runtime dependencies
+└── requirements-dev.txt   # development dependencies (includes pytest)
 ```
 
-## Variáveis de ambiente planejadas
+## Planned environment variables
 
-| Variável | Para que serve | Exemplo |
+| Variable | Purpose | Example |
 |---|---|---|
-| `DATABASE_URL` | Conexão com o Postgres | `postgresql://usuario:senha@db:5432/slicepizza` |
+| `DATABASE_URL` | Postgres connection | `postgresql://user:password@db:5432/slicepizza` |
 
-## Links úteis para começar
+## Useful links to get started
 
-- [Tutorial do FastAPI (em português)](https://fastapi.tiangolo.com/pt/tutorial/)
-- [Docker: primeiros passos](https://docs.docker.com/get-started/)
-- [Docker Compose: guia rápido](https://docs.docker.com/compose/gettingstarted/)
+- [FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/)
+- [Docker: getting started](https://docs.docker.com/get-started/)
+- [Docker Compose: quickstart](https://docs.docker.com/compose/gettingstarted/)

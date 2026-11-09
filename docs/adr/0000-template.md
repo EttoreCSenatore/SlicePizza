@@ -1,22 +1,22 @@
-# 0000: Título da decisão
+# 0000: Decision title
 
-- **Status:** Proposto | Aceito | Substituído por 00XX
-- **Data:** AAAA-MM-DD
-- **Fase:** N
+- **Status:** Proposed | Accepted | Superseded by 00XX
+- **Date:** YYYY-MM-DD
+- **Phase:** N
 
-## Contexto
+## Context
 
-Qual é o problema? O que está forçando a tomar essa decisão agora?
+What is the problem? What is forcing this decision now?
 
-## Opções consideradas
+## Options considered
 
-1. **Opção A**: prós e contras.
-2. **Opção B**: prós e contras.
+1. **Option A**: pros and cons.
+2. **Option B**: pros and cons.
 
-## Decisão
+## Decision
 
-O que escolhemos e por quê.
+What we chose and why.
 
-## Consequências
+## Consequences
 
-O que fica mais fácil, o que fica mais difícil e o que precisamos fazer por causa dessa decisão.
+What gets easier, what gets harder, and what we need to do because of this decision.

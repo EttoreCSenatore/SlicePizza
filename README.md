@@ -1,103 +1,103 @@
 # 🍕 SlicePizza
 
-Projeto de estudo de **DevOps na prática**: um sistema de pedidos online para uma pizzaria fictícia, a **Pizzaria do Zé**.
+A **hands-on DevOps learning project**: an online ordering system for a fictional pizzeria, **Zé's Pizzeria**.
 
-O sistema começa pequeno e evolui em **fases**. Em cada fase o "dono da pizzaria" faz um pedido novo, e esse pedido obriga a aprender uma tecnologia nova: Docker, DNS, nuvem, filas, CI/CD, observabilidade, Terraform, Kubernetes...
+The system starts small and grows in **phases**. In each phase, the "pizzeria owner" asks for something new, and that request forces you to learn a new technology: Docker, DNS, cloud, queues, CI/CD, observability, Terraform, Kubernetes...
 
-> A ideia é **sentir o problema antes de usar a ferramenta**. Não usamos Kubernetes na Fase 1, porque ainda não existe o problema que ele resolve.
+> The idea is to **feel the problem before using the tool**. We don't use Kubernetes in Phase 1, because the problem it solves doesn't exist yet.
 
 ---
 
-## Arquitetura (objetivo final)
+## Architecture (end goal)
 
 ```
-Cliente ──► www.seudominio.com.br ──► Site do cardápio (estático, CDN)
-                                            │ chama a API
-                                            ▼
-            api.seudominio.com.br ──► Proxy (Caddy) ──► API de pedidos ──► Postgres
-                                                            │      └────► Redis (cache)
-                                                            ▼
-                                                     Fila (RabbitMQ)
-                                                            │
-                                                            ▼
-                                                 Worker de notificações ──► Telegram
+Customer ──► www.yourdomain.com ──► Menu website (static, CDN)
+                                          │ calls the API
+                                          ▼
+         api.yourdomain.com ──► Proxy (Caddy) ──► Orders API ──► Postgres
+                                                      │      └────► Redis (cache)
+                                                      ▼
+                                               Queue (RabbitMQ)
+                                                      │
+                                                      ▼
+                                             Notification worker ──► Telegram
 
-Cozinha ──► admin.seudominio.com.br ──► Painel da cozinha ──► API
+Kitchen ──► admin.yourdomain.com ──► Kitchen dashboard ──► API
 ```
 
-Detalhes de cada componente em [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Details for each component in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Stack
 
-| Componente | Tecnologia | Entra na fase |
+| Component | Technology | Introduced in phase |
 |---|---|---|
-| API de pedidos | Python + FastAPI | 1 |
-| Banco de dados | PostgreSQL | 1 |
+| Orders API | Python + FastAPI | 1 |
+| Database | PostgreSQL | 1 |
 | Containers | Docker + Docker Compose | 1 |
-| Nuvem | AWS ou Oracle Cloud (free tier) | 2 |
+| Cloud | AWS or Oracle Cloud (free tier) | 2 |
 | DNS | Cloudflare | 2 |
-| Proxy reverso + HTTPS | Caddy | 2 |
-| Fila | RabbitMQ | 3 |
-| Notificações | Bot do Telegram | 3 |
+| Reverse proxy + HTTPS | Caddy | 2 |
+| Queue | RabbitMQ | 3 |
+| Notifications | Telegram bot | 3 |
 | CI/CD | GitHub Actions + GHCR | 4 |
-| Observabilidade | Prometheus, Grafana, Loki | 5 |
-| Infraestrutura como código | Terraform + Ansible | 6 |
+| Observability | Prometheus, Grafana, Loki | 5 |
+| Infrastructure as code | Terraform + Ansible | 6 |
 | Cache | Redis | 7 |
-| Orquestração | Kubernetes (k3s) + Helm | 7 |
-| Segurança | Trivy, gerenciador de segredos | 8 |
+| Orchestration | Kubernetes (k3s) + Helm | 7 |
+| Security | Trivy, secrets manager | 8 |
 
-## Estrutura do repositório
+## Repository structure
 
 ```
 SlicePizza/
-├── api/            # API de pedidos (FastAPI)          → Fase 1
-├── worker/         # Worker de notificações           → Fase 3
-├── frontend/       # Site do cardápio + painel        → Fase 2
-├── infra/          # Terraform, Ansible, Kubernetes   → Fases 6 e 7
-├── docs/           # Documentação, roadmap e ADRs
-├── .github/        # Templates e pipelines de CI/CD   → Fase 4
-├── docker-compose.yml   # sobe tudo localmente      → Fase 1
-└── .env.example         # modelo das variáveis       → Fase 1
+├── api/            # Orders API (FastAPI)               → Phase 1
+├── worker/         # Notification worker                → Phase 3
+├── frontend/       # Menu website + kitchen dashboard   → Phase 2
+├── infra/          # Terraform, Ansible, Kubernetes     → Phases 6 and 7
+├── docs/           # Documentation, roadmap and ADRs
+├── .github/        # Templates and CI/CD pipelines      → Phase 4
+├── docker-compose.yml   # runs everything locally       → Phase 1
+└── .env.example         # environment variable template → Phase 1
 ```
 
-## Por onde começar
+## Getting started
 
-**Pré-requisitos:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) com o Docker Compose e Python 3.12 ou mais novo.
+**Prerequisites:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) with Docker Compose, and Python 3.12 or newer.
 
-1. Clone o repositório:
+1. Clone the repository:
    ```bash
    git clone git@github.com:EttoreCSenatore/SlicePizza.git
    cd SlicePizza
    ```
-2. Leia a [arquitetura](docs/ARCHITECTURE.md) para entender aonde o sistema vai chegar.
-3. Leia o [fluxo de trabalho](CONTRIBUTING.md): branches, commits e Pull Requests.
-4. Abra a [Fase 1 do ROADMAP](docs/ROADMAP.md#fase-1-quero-ver-funcionando-no-seu-computador) e comece pela primeira tarefa.
+2. Read the [architecture](docs/ARCHITECTURE.md) to understand where the system is headed.
+3. Read the [contribution workflow](CONTRIBUTING.md): branches, commits and Pull Requests.
+4. Open [Phase 1 of the ROADMAP](docs/ROADMAP.md#phase-1-i-want-to-see-it-running-on-your-computer) and start with the first task.
 
-Ao final da Fase 1, esta seção vai explicar como subir o sistema com `docker compose up`.
+By the end of Phase 1, this section will explain how to run the system with `docker compose up`.
 
 ## Roadmap
 
-| Fase | Pedido do Zé | Status |
+| Phase | Zé's request | Status |
 |---|---|---|
-| 1 | "Quero ver funcionando no seu computador" | 🚧 Em andamento |
-| 2 | "Quero o site no ar com o meu domínio" | ⏳ |
-| 3 | "O cliente quer saber quando a pizza sai" | ⏳ |
-| 4 | "Toda vez que você mexe, alguma coisa quebra" | ⏳ |
-| 5 | "O site caiu sexta à noite e ninguém percebeu" | ⏳ |
-| 6 | "O servidor morreu e perdemos os pedidos" | ⏳ |
-| 7 | "Vamos fazer promoção de pizza a R$ 20 na sexta" | ⏳ |
-| 8 | "Ouvi falar que hackers atacam pizzarias" | ⏳ |
+| 1 | "I want to see it running on your computer" | 🚧 In progress |
+| 2 | "I want the site live on my own domain" | ⏳ |
+| 3 | "Customers want to know when their pizza is on the way" | ⏳ |
+| 4 | "Every time you change something, something breaks" | ⏳ |
+| 5 | "The site went down Friday night and nobody noticed" | ⏳ |
+| 6 | "The server died and we lost the orders" | ⏳ |
+| 7 | "We're running a R$20 pizza promo on Friday" | ⏳ |
+| 8 | "I heard hackers attack pizzerias" | ⏳ |
 
-Tarefas e critérios de pronto de cada fase em [docs/ROADMAP.md](docs/ROADMAP.md).
+Tasks and definition of done for each phase in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Regras do jogo
+## Ground rules
 
-1. **Tudo fica no Git.** A partir da Fase 6, é proibido mudar algo direto no servidor.
-2. **Nada vai direto na `main`.** Toda mudança entra por Pull Request (veja [CONTRIBUTING.md](CONTRIBUTING.md)).
-3. **Toda decisão importante vira um ADR** em [docs/adr/](docs/adr/). Por exemplo: "por que RabbitMQ e não Redis?".
-4. **Segredos nunca vão para o Git.** Use o `.env` (que está no `.gitignore`).
-5. **Ao fechar uma fase, atualize este README** (diagrama, stack e roadmap).
+1. **Everything lives in Git.** From Phase 6 on, making changes directly on the server is not allowed.
+2. **Nothing goes straight to `main`.** Every change goes through a Pull Request (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+3. **Every important decision becomes an ADR** in [docs/adr/](docs/adr/). For example: "why RabbitMQ and not Redis?".
+4. **Secrets never go into Git.** Use the `.env` file (it's in `.gitignore`).
+5. **When a phase is done, update this README** (diagram, stack and roadmap).
 
-## Licença
+## License
 
 [Apache 2.0](LICENSE)

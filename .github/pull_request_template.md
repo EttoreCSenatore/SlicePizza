@@ -1,20 +1,20 @@
-## O que muda
+## What changes
 
-<!-- Descreva em poucas linhas o que este PR faz. -->
+<!-- Briefly describe what this PR does. -->
 
-## Fase do roadmap
+## Roadmap phase
 
-<!-- Ex.: Fase 1 — POST /pedidos -->
+<!-- e.g. Phase 1 — POST /orders -->
 
-## Como testar
+## How to test
 
-<!-- Passo a passo para quem for revisar conseguir testar. -->
+<!-- Step by step, so the reviewer can test it. -->
 
 1.
 
 ## Checklist
 
-- [ ] `docker compose up --build` sobe sem erros
-- [ ] Os testes passam
-- [ ] Nenhum segredo foi incluído no commit
-- [ ] Documentação e ROADMAP atualizados, se necessário
+- [ ] `docker compose up --build` runs without errors
+- [ ] Tests pass
+- [ ] No secrets were committed
+- [ ] Documentation and ROADMAP updated, if needed

@@ -1,16 +1,16 @@
-# Infraestrutura
+# Infrastructure
 
-> ⏳ **Começa na Fase 2.** Veja o [ROADMAP](../docs/ROADMAP.md).
+> ⏳ **Starts in Phase 2.** See the [ROADMAP](../docs/ROADMAP.md).
 
-Tudo o que descreve **onde e como** o sistema roda. Estrutura planejada:
+Everything that describes **where and how** the system runs. Planned structure:
 
 ```
 infra/
-├── caddy/        # Proxy reverso e HTTPS                → Fase 2
-├── monitoring/   # Prometheus, Grafana, Loki            → Fase 5
-├── terraform/    # Rede, máquina virtual, firewall, DNS → Fase 6
-├── ansible/      # Configuração do servidor             → Fase 6
-└── k8s/          # Manifests e Helm do Kubernetes       → Fase 7
+├── caddy/        # Reverse proxy and HTTPS                  → Phase 2
+├── monitoring/   # Prometheus, Grafana, Loki                → Phase 5
+├── terraform/    # Network, virtual machine, firewall, DNS  → Phase 6
+├── ansible/      # Server configuration                     → Phase 6
+└── k8s/          # Kubernetes manifests and Helm            → Phase 7
 ```
 
-Regra a partir da Fase 6: **nenhuma mudança manual no servidor.** Se não está aqui, não existe.
+Rule from Phase 6 on: **no manual changes on the server.** If it's not here, it doesn't exist.

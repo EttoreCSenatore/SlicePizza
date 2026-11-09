@@ -1,70 +1,70 @@
-# Arquitetura
+# Architecture
 
-Este documento descreve **para onde o sistema vai**. Nem tudo existe ainda: veja a coluna "Fase" para saber quando cada parte entra.
+This document describes **where the system is headed**. Not everything exists yet: check the "Phase" column to see when each part is introduced.
 
-## Visão geral
+## Overview
 
 ```
-Cliente ──► www.seudominio.com.br ──► Site do cardápio (estático, CDN)
-                                            │ chama a API
-                                            ▼
-            api.seudominio.com.br ──► Proxy (Caddy) ──► API de pedidos ──► Postgres
-                                                            │      └────► Redis (cache)
-                                                            ▼
-                                                     Fila (RabbitMQ)
-                                                            │
-                                                            ▼
-                                                 Worker de notificações ──► Telegram
+Customer ──► www.yourdomain.com ──► Menu website (static, CDN)
+                                          │ calls the API
+                                          ▼
+         api.yourdomain.com ──► Proxy (Caddy) ──► Orders API ──► Postgres
+                                                      │      └────► Redis (cache)
+                                                      ▼
+                                               Queue (RabbitMQ)
+                                                      │
+                                                      ▼
+                                             Notification worker ──► Telegram
 
-Cozinha ──► admin.seudominio.com.br ──► Painel da cozinha ──► API
+Kitchen ──► admin.yourdomain.com ──► Kitchen dashboard ──► API
 ```
 
-## Componentes
+## Components
 
-| Componente | Pasta | Responsabilidade | Fase |
+| Component | Folder | Responsibility | Phase |
 |---|---|---|---|
-| API de pedidos | `api/` | Cardápio, criar pedido, consultar e mudar status | 1 |
-| Postgres | (imagem oficial) | Guarda pizzas, pedidos e clientes | 1 |
-| Site do cardápio | `frontend/` | Página pública onde o cliente faz o pedido | 2 |
-| Proxy reverso (Caddy) | `infra/` | Recebe o tráfego HTTPS e encaminha para a API | 2 |
-| RabbitMQ | (imagem oficial) | Fila de eventos de pedido | 3 |
-| Worker de notificações | `worker/` | Lê a fila e avisa o cliente pelo Telegram | 3 |
-| Painel da cozinha | `frontend/` | A cozinha vê os pedidos e muda o status | 3 |
-| Redis | (imagem oficial) | Cache do cardápio | 7 |
+| Orders API | `api/` | Menu, create orders, get and update order status | 1 |
+| Postgres | (official image) | Stores pizzas, orders and customers | 1 |
+| Menu website | `frontend/` | Public page where customers place orders | 2 |
+| Reverse proxy (Caddy) | `infra/` | Receives HTTPS traffic and forwards it to the API | 2 |
+| RabbitMQ | (official image) | Queue for order events | 3 |
+| Notification worker | `worker/` | Reads the queue and notifies the customer on Telegram | 3 |
+| Kitchen dashboard | `frontend/` | The kitchen sees orders and updates their status | 3 |
+| Redis | (official image) | Menu cache | 7 |
 
-## Fluxo de um pedido
+## Order flow
 
-1. O cliente abre `www.seudominio.com.br` e escolhe as pizzas.
-2. O site chama `POST /pedidos` na API. O pedido é salvo no Postgres com status `recebido`.
-3. A cozinha vê o pedido no painel e muda o status para `em_preparo`.
-4. A API salva o novo status e publica um evento `pedido.status_alterado` na fila.
-5. O worker lê o evento e manda a mensagem no Telegram do cliente.
-6. O mesmo se repete para `saiu_para_entrega` e `entregue`.
+1. The customer opens `www.yourdomain.com` and picks their pizzas.
+2. The site calls `POST /orders` on the API. The order is saved in Postgres with status `received`.
+3. The kitchen sees the order on the dashboard and changes its status to `preparing`.
+4. The API saves the new status and publishes an `order.status_changed` event to the queue.
+5. The worker reads the event and sends the customer a Telegram message.
+6. The same happens for `out_for_delivery` and `delivered`.
 
-Por que usar uma fila no passo 4, em vez de a API chamar o Telegram direto? Se o Telegram estiver lento ou fora do ar, a API continua respondendo rápido, e as mensagens esperam na fila até o worker conseguir enviá-las.
+Why use a queue in step 4, instead of having the API call Telegram directly? If Telegram is slow or down, the API keeps responding quickly, and the messages wait in the queue until the worker can send them.
 
-## Status do pedido
+## Order status
 
 ```
-recebido ──► em_preparo ──► saiu_para_entrega ──► entregue
+received ──► preparing ──► out_for_delivery ──► delivered
     │
-    └──► cancelado
+    └──► cancelled
 ```
 
-## DNS planejado (Fase 2)
+## Planned DNS (Phase 2)
 
-| Registro | Tipo | Aponta para |
+| Record | Type | Points to |
 |---|---|---|
-| `www.seudominio.com.br` | CNAME | CDN do site estático |
-| `api.seudominio.com.br` | A | IP da máquina virtual |
-| `admin.seudominio.com.br` | A | IP da máquina virtual |
-| `staging.seudominio.com.br` | A | IP da máquina virtual de homologação (Fase 4) |
+| `www.yourdomain.com` | CNAME | CDN for the static site |
+| `api.yourdomain.com` | A | Virtual machine IP |
+| `admin.yourdomain.com` | A | Virtual machine IP |
+| `staging.yourdomain.com` | A | Staging virtual machine IP (Phase 4) |
 
-## Portas locais planejadas (Docker Compose)
+## Planned local ports (Docker Compose)
 
-| Serviço | Porta |
+| Service | Port |
 |---|---|
 | API | 8000 |
 | Postgres | 5432 |
-| RabbitMQ (Fase 3) | 5672, painel em 15672 |
-| Grafana (Fase 5) | 3000 |
+| RabbitMQ (Phase 3) | 5672, management UI on 15672 |
+| Grafana (Phase 5) | 3000 |

@@ -1,4 +1,4 @@
-# Segredos
+# Secrets
 .env
 
 # Python
@@ -8,13 +8,13 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# Terraform (Fase 6)
+# Terraform (Phase 6)
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
 
-# Editores e sistema
+# Editors and OS
 .idea/
 .vscode/
 .DS_Store

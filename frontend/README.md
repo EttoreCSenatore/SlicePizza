@@ -1,10 +1,10 @@
 # Frontend
 
-> ⏳ **Começa na Fase 2.** Veja o [ROADMAP](../docs/ROADMAP.md#fase-2-quero-o-site-no-ar-com-o-meu-domínio).
+> ⏳ **Starts in Phase 2.** See the [ROADMAP](../docs/ROADMAP.md#phase-2-i-want-the-site-live-on-my-own-domain).
 
-Duas páginas simples, em HTML + JavaScript (o foco do projeto é DevOps, não front-end):
+Two simple pages in plain HTML + JavaScript (the project's focus is DevOps, not front-end):
 
-| Página | Endereço | Para quem |
+| Page | Address | For whom |
 |---|---|---|
-| Site do cardápio | `www.seudominio.com.br` | Cliente escolhe as pizzas e faz o pedido |
-| Painel da cozinha | `admin.seudominio.com.br` | Cozinha vê os pedidos e muda o status (Fase 3) |
+| Menu website | `www.yourdomain.com` | Customers pick pizzas and place orders |
+| Kitchen dashboard | `admin.yourdomain.com` | The kitchen sees orders and updates their status (Phase 3) |

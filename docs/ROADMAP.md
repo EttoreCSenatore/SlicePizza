@@ -1,146 +1,146 @@
 # Roadmap
 
-Cada fase começa com um **pedido do Zé**, o dono da pizzaria. O pedido é o problema; as tarefas são a solução; o **critério de pronto** diz quando a fase acabou.
+Each phase starts with a **request from Zé**, the pizzeria owner. The request is the problem; the tasks are the solution; the **definition of done** tells you when the phase is over.
 
-Marque as caixas conforme for avançando.
-
----
-
-## Fase 1: "Quero ver funcionando no seu computador"
-
-**Objetivo:** API de pedidos rodando localmente, em containers, salvando no banco.
-
-- [x] Estrutura inicial do repositório e documentação
-- [ ] API com `GET /health` e `GET /cardapio` (cardápio fixo no código, para começar)
-- [ ] Primeiro teste automatizado com pytest
-- [ ] Dockerfile da API
-- [ ] `docker-compose.yml` com API + Postgres
-- [ ] `.env.example` com as variáveis do banco (o `.env` real nunca vai para o Git)
-- [ ] Conectar a API ao Postgres (sugestão: SQLAlchemy ou psycopg)
-- [ ] Criar as tabelas `pizzas` e `pedidos`
-- [ ] Mover o cardápio para o banco
-- [ ] `POST /pedidos`: criar um pedido
-- [ ] `GET /pedidos/{id}`: consultar um pedido
-- [ ] `PATCH /pedidos/{id}/status`: mudar o status (`recebido` → `em_preparo` → `saiu_para_entrega` → `entregue`)
-- [ ] Testes para as novas rotas
-
-**Pronto quando:** `docker compose up` sobe tudo do zero e um pedido criado continua salvo depois de `docker compose down` + `docker compose up`.
-
-**Você aprende:** Python, SQL, Git, Docker, volumes e redes entre containers.
+Check the boxes as you make progress.
 
 ---
 
-## Fase 2: "Quero o site no ar com o meu domínio"
+## Phase 1: "I want to see it running on your computer"
 
-**Objetivo:** sistema acessível pela internet, com HTTPS, no seu domínio.
+**Goal:** the orders API running locally, in containers, saving to the database.
 
-- [ ] Registrar um domínio (Registro.br ou Cloudflare)
-- [ ] Criar uma máquina virtual na nuvem (AWS EC2 ou Oracle Cloud Free Tier)
-- [ ] Configurar acesso por SSH com chave (sem senha)
-- [ ] Liberar só as portas 22, 80 e 443 no firewall
-- [ ] Instalar o Docker na máquina virtual
-- [ ] Criar o site do cardápio em `frontend/` (HTML + JS simples)
-- [ ] Hospedar o site estático em CDN (Cloudflare Pages ou S3 + CloudFront)
-- [ ] DNS: `www` (CNAME para a CDN), `api` e `admin` (registro A para a máquina virtual)
-- [ ] Caddy como proxy reverso, com HTTPS automático
+- [x] Initial repository structure and documentation
+- [ ] API with `GET /health` and `GET /menu` (menu hardcoded, to start)
+- [ ] First automated test with pytest
+- [ ] Dockerfile for the API
+- [ ] `docker-compose.yml` with API + Postgres
+- [ ] `.env.example` with the database variables (the real `.env` never goes into Git)
+- [ ] Connect the API to Postgres (suggestion: SQLAlchemy or psycopg)
+- [ ] Create the `pizzas` and `orders` tables
+- [ ] Move the menu into the database
+- [ ] `POST /orders`: create an order
+- [ ] `GET /orders/{id}`: get an order
+- [ ] `PATCH /orders/{id}/status`: change the status (`received` → `preparing` → `out_for_delivery` → `delivered`)
+- [ ] Tests for the new routes
 
-**Pronto quando:** você faz um pedido pelo celular, com HTTPS, pela internet.
+**Done when:** `docker compose up` brings everything up from scratch, and an order you created is still saved after `docker compose down` + `docker compose up`.
 
-**Você aprende:** DNS, SSH, firewall, proxy reverso, TLS e CDN.
-
----
-
-## Fase 3: "O cliente quer saber quando a pizza sai"
-
-**Objetivo:** avisar o cliente a cada mudança de status, sem travar a API.
-
-- [ ] Adicionar o RabbitMQ ao `docker-compose.yml`
-- [ ] API publica um evento na fila quando o status do pedido muda
-- [ ] Criar o worker em `worker/` que consome a fila
-- [ ] Criar um bot no Telegram e enviar a notificação pelo worker
-- [ ] Criar o painel da cozinha (`admin.seudominio.com.br`)
-
-**Pronto quando:** se você derrubar o worker, as mensagens ficam na fila e são enviadas quando ele volta.
-
-**Você aprende:** sistemas assíncronos, filas e serviços que conversam entre si.
+**You learn:** Python, SQL, Git, Docker, volumes and container networking.
 
 ---
 
-## Fase 4: "Toda vez que você mexe, alguma coisa quebra"
+## Phase 2: "I want the site live on my own domain"
 
-**Objetivo:** todo código passa por testes automáticos antes de ir para produção.
+**Goal:** the system reachable from the internet, over HTTPS, on your domain.
 
-- [ ] Pipeline no GitHub Actions: lint → testes → build da imagem
-- [ ] Publicar as imagens no GHCR (registry de imagens do GitHub)
-- [ ] Deploy automático na máquina virtual depois do merge na `main`
-- [ ] Ambiente de homologação em `staging.seudominio.com.br`
-- [ ] Segredos guardados no GitHub Secrets
+- [ ] Register a domain (e.g. Registro.br, Cloudflare or Namecheap)
+- [ ] Create a cloud virtual machine (AWS EC2 or Oracle Cloud Free Tier)
+- [ ] Set up SSH access with a key (no password)
+- [ ] Open only ports 22, 80 and 443 in the firewall
+- [ ] Install Docker on the virtual machine
+- [ ] Build the menu website in `frontend/` (plain HTML + JS)
+- [ ] Host the static site on a CDN (Cloudflare Pages or S3 + CloudFront)
+- [ ] DNS: `www` (CNAME to the CDN), `api` and `admin` (A record to the virtual machine)
+- [ ] Caddy as reverse proxy, with automatic HTTPS
 
-**Pronto quando:** um merge na `main` coloca a nova versão em produção sem você entrar no servidor.
+**Done when:** you place an order from your phone, over HTTPS, through the internet.
 
-**Você aprende:** CI/CD, ambientes separados, segredos e versionamento de imagens.
-
----
-
-## Fase 5: "O site caiu sexta à noite e ninguém percebeu"
-
-**Objetivo:** saber que algo quebrou antes do cliente reclamar.
-
-- [ ] Rota `/health` em todos os serviços
-- [ ] Expor métricas da API para o Prometheus (pedidos por minuto, latência, erros)
-- [ ] Painéis no Grafana
-- [ ] Centralizar os logs dos containers no Loki
-- [ ] Alertas no Telegram: API fora do ar, fila acumulando mensagens
-
-**Pronto quando:** você derruba a API de propósito e recebe o alerta em até 2 minutos.
-
-**Você aprende:** observabilidade, métricas, logs e alertas.
+**You learn:** DNS, SSH, firewalls, reverse proxies, TLS and CDNs.
 
 ---
 
-## Fase 6: "O servidor morreu e perdemos os pedidos"
+## Phase 3: "Customers want to know when their pizza is on the way"
 
-**Objetivo:** conseguir recriar tudo do zero, com os dados, em pouco tempo.
+**Goal:** notify the customer on every status change, without slowing down the API.
 
-- [ ] Backup diário do Postgres, criptografado, enviado para o S3
-- [ ] Regra de retenção no S3 (ex.: manter 30 dias)
-- [ ] Testar a restauração do backup
-- [ ] Terraform em `infra/terraform/`: rede, máquina virtual, firewall, registros DNS
-- [ ] Ansible em `infra/ansible/`: instalar Docker e configurar o servidor
-- [ ] Usuário IAM com permissão mínima para o backup
+- [ ] Add RabbitMQ to `docker-compose.yml`
+- [ ] The API publishes an event to the queue when an order's status changes
+- [ ] Create the worker in `worker/` that consumes the queue
+- [ ] Create a Telegram bot and send the notification from the worker
+- [ ] Build the kitchen dashboard (`admin.yourdomain.com`)
 
-**Pronto quando:** `terraform destroy`, depois `terraform apply`, restaurar o backup e tudo volta em menos de 30 minutos.
+**Done when:** if you take the worker down, messages wait in the queue and are sent when it comes back.
 
-**Você aprende:** infraestrutura como código (IaC), recuperação de desastre e IAM.
-
----
-
-## Fase 7: "Vamos fazer promoção de pizza a R$ 20 na sexta"
-
-**Objetivo:** aguentar muito mais acesso sem cair.
-
-- [ ] Teste de carga com k6 para descobrir o gargalo
-- [ ] Cache do cardápio no Redis
-- [ ] Fotos das pizzas no S3 com CDN
-- [ ] Migrar para Kubernetes (k3s) com manifests em `infra/k8s/`
-- [ ] Ingress + cert-manager (HTTPS automático)
-- [ ] Autoescala com HPA
-- [ ] Empacotar com Helm
-
-**Pronto quando:** o sistema aguenta 10 vezes o tráfego normal sem erro.
-
-**Você aprende:** escalabilidade, cache, Kubernetes e testes de carga.
+**You learn:** asynchronous systems, queues and services talking to each other.
 
 ---
 
-## Fase 8 (bônus): "Ouvi falar que hackers atacam pizzarias"
+## Phase 4: "Every time you change something, something breaks"
 
-**Objetivo:** fechar as portas mais óbvias.
+**Goal:** all code goes through automated tests before reaching production.
 
-- [ ] Senhas e chaves em um gerenciador de segredos
-- [ ] Verificar vulnerabilidades das imagens com Trivy no pipeline
-- [ ] Limitar requisições por cliente na API (rate limit)
-- [ ] Containers rodando sem usuário root
-- [ ] Revisar permissões IAM
+- [ ] GitHub Actions pipeline: lint → tests → image build
+- [ ] Publish images to GHCR (GitHub's container registry)
+- [ ] Automatic deploy to the virtual machine after merging into `main`
+- [ ] Staging environment at `staging.yourdomain.com`
+- [ ] Secrets stored in GitHub Secrets
 
-**Você aprende:** o básico de DevSecOps.
+**Done when:** a merge into `main` puts the new version in production without you logging into the server.
+
+**You learn:** CI/CD, separate environments, secrets and image versioning.
+
+---
+
+## Phase 5: "The site went down Friday night and nobody noticed"
+
+**Goal:** know something broke before a customer complains.
+
+- [ ] `/health` route on every service
+- [ ] Expose API metrics to Prometheus (orders per minute, latency, errors)
+- [ ] Grafana dashboards
+- [ ] Centralize container logs in Loki
+- [ ] Telegram alerts: API down, queue piling up
+
+**Done when:** you take the API down on purpose and get the alert within 2 minutes.
+
+**You learn:** observability, metrics, logs and alerting.
+
+---
+
+## Phase 6: "The server died and we lost the orders"
+
+**Goal:** be able to rebuild everything from scratch, with the data, quickly.
+
+- [ ] Daily Postgres backup, encrypted, uploaded to S3
+- [ ] Retention rule on S3 (e.g. keep 30 days)
+- [ ] Test restoring the backup
+- [ ] Terraform in `infra/terraform/`: network, virtual machine, firewall, DNS records
+- [ ] Ansible in `infra/ansible/`: install Docker and configure the server
+- [ ] IAM user with least privilege for the backup
+
+**Done when:** `terraform destroy`, then `terraform apply`, restore the backup, and everything is back in under 30 minutes.
+
+**You learn:** infrastructure as code (IaC), disaster recovery and IAM.
+
+---
+
+## Phase 7: "We're running a R$20 pizza promo on Friday"
+
+**Goal:** handle much more traffic without going down.
+
+- [ ] Load test with k6 to find the bottleneck
+- [ ] Cache the menu in Redis
+- [ ] Pizza photos on S3 with a CDN
+- [ ] Migrate to Kubernetes (k3s) with manifests in `infra/k8s/`
+- [ ] Ingress + cert-manager (automatic HTTPS)
+- [ ] Autoscaling with HPA
+- [ ] Package with Helm
+
+**Done when:** the system handles 10 times the normal traffic without errors.
+
+**You learn:** scalability, caching, Kubernetes and load testing.
+
+---
+
+## Phase 8 (bonus): "I heard hackers attack pizzerias"
+
+**Goal:** close the most obvious doors.
+
+- [ ] Passwords and keys in a secrets manager
+- [ ] Scan images for vulnerabilities with Trivy in the pipeline
+- [ ] Limit requests per client on the API (rate limiting)
+- [ ] Containers running as a non-root user
+- [ ] Review IAM permissions
+
+**You learn:** the basics of DevSecOps.

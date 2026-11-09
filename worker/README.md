@@ -1,7 +1,7 @@
-# Worker de notificações
+# Notification worker
 
-> ⏳ **Começa na Fase 3.** Veja o [ROADMAP](../docs/ROADMAP.md#fase-3-o-cliente-quer-saber-quando-a-pizza-sai).
+> ⏳ **Starts in Phase 3.** See the [ROADMAP](../docs/ROADMAP.md#phase-3-customers-want-to-know-when-their-pizza-is-on-the-way).
 
-Serviço em Python que fica escutando a fila do RabbitMQ. Quando chega um evento `pedido.status_alterado`, ele envia uma mensagem para o cliente pelo Telegram.
+A Python service that listens to the RabbitMQ queue. When an `order.status_changed` event arrives, it sends the customer a message on Telegram.
 
-Por que um serviço separado, e não a própria API? Veja o "Fluxo de um pedido" em [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md#fluxo-de-um-pedido).
+Why a separate service instead of the API itself? See "Order flow" in [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md#order-flow).
