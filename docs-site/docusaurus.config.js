@@ -12,23 +12,31 @@ import {themes as prismThemes} from 'prism-react-renderer';
 const config = {
   title: 'SlicePizza',
   tagline: "Hands-on DevOps learning project for Zé's Pizzeria",
-  favicon: 'img/favicon.ico',
+  favicon: 'img/logo.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // Set the production url of your site here
-  url: 'https://EttoreCSenatore.github.io',
-  // Set the /<baseUrl>/ pathname under which your site is served.
-  baseUrl: '/',
+  // GitHub Pages serves a project site at https://<user>.github.io/<repo>/,
+  // so every asset and link must live under /SlicePizza/.
+  url: 'https://ettorecsenatore.github.io',
+  baseUrl: '/SlicePizza/',
+  // GitHub Pages redirects /page to /page/ unless this is set explicitly.
+  trailingSlash: false,
 
   // GitHub pages deployment config.
   organizationName: 'EttoreCSenatore',
   projectName: 'SlicePizza',
 
   onBrokenLinks: 'throw',
+
+  markdown: {
+    // .md files are plain Markdown and only .mdx files may contain JSX, so
+    // the ADRs from docs/adr/ render as written, whoever writes them.
+    format: 'detect',
+  },
 
   i18n: {
     defaultLocale: 'en',
@@ -42,8 +50,9 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
-          // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/EttoreCSenatore/SlicePizza/tree/main/',
+          // The site lives in docs-site/, so the edit links must include it.
+          editUrl:
+            'https://github.com/EttoreCSenatore/SlicePizza/tree/main/docs-site/',
         },
         // The demo blog is not used by SlicePizza.
         blog: false,
@@ -54,11 +63,38 @@ const config = {
     ],
   ],
 
+  plugins: [
+    [
+      // Render the ADRs straight from the repository's docs/adr/ folder, so
+      // they have a single source of truth and new ADRs appear automatically.
+      '@docusaurus/plugin-content-docs',
+      /** @type {import('@docusaurus/plugin-content-docs').Options} */
+      ({
+        id: 'adr',
+        path: '../docs/adr',
+        routeBasePath: 'adr',
+        // Keep the ADR number in the URL: /adr/0001-monorepo, not /adr/monorepo.
+        numberPrefixParser: false,
+        sidebarPath: './sidebarsAdr.js',
+        // docPath is relative to docs/adr/ (a plain string would be joined with
+        // the path from docs-site/, giving .../docs/adr/../docs/adr/...).
+        editUrl: ({docPath}) =>
+          `https://github.com/EttoreCSenatore/SlicePizza/tree/main/docs/adr/${docPath}`,
+        // README.md is the overview, placed first in sidebarsAdr.js. Keep it
+        // out of the automatic list so it does not appear twice.
+        async sidebarItemsGenerator({defaultSidebarItemsGenerator, ...args}) {
+          const items = await defaultSidebarItemsGenerator(args);
+          return items.filter(
+            (item) => !(item.type === 'doc' && item.id === 'README'),
+          );
+        },
+      }),
+    ],
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      // Replace with your project's social card
-      image: 'img/docusaurus-social-card.jpg',
       colorMode: {
         respectPrefersColorScheme: true,
       },
@@ -76,6 +112,13 @@ const config = {
             label: 'Docs',
           },
           {
+            type: 'docSidebar',
+            sidebarId: 'adrSidebar',
+            docsPluginId: 'adr',
+            position: 'left',
+            label: 'ADRs',
+          },
+          {
             href: 'https://github.com/EttoreCSenatore/SlicePizza',
             label: 'GitHub',
             position: 'right',
@@ -91,6 +134,10 @@ const config = {
               {
                 label: 'Introduction',
                 to: '/docs/intro',
+              },
+              {
+                label: 'ADRs',
+                to: '/adr',
               },
             ],
           },

@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Phase 1 — Overview
 
 **Zé's request:** _"I want to see it running on your computer."_

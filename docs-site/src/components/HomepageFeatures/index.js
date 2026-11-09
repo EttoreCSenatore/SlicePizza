@@ -1,12 +1,11 @@
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
-import Link from '@docusaurus/Link';
 import styles from './styles.module.css';
 
 const FeatureList = [
   {
     title: 'Learn by phase',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    icon: '🍕',
     description: (
       <>
         Each phase starts with a request from Zé&apos;s Pizzeria and introduces
@@ -16,7 +15,7 @@ const FeatureList = [
   },
   {
     title: 'Hands-on',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    icon: '🛠️',
     description: (
       <>
         Everything runs on your machine: the API, the database and the Docker
@@ -26,7 +25,7 @@ const FeatureList = [
   },
   {
     title: 'Decisions recorded',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    icon: '📝',
     description: (
       <>
         Architecture Decision Records explain why each important choice was
@@ -36,11 +35,14 @@ const FeatureList = [
   },
 ];
 
-function Feature({Svg, title, description}) {
+function Feature({icon, title, description}) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
+        {/* Decorative: the heading below already says what the card is about. */}
+        <span className={styles.featureIcon} aria-hidden="true">
+          {icon}
+        </span>
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>
