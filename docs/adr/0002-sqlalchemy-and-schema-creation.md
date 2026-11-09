@@ -1,0 +1,30 @@
+# 0002: SQLAlchemy ORM and schema creation on startup
+
+- **Status:** Accepted
+- **Date:** 2026-11-09
+- **Phase:** 1
+
+## Context
+
+Phase 1 needs the API to talk to PostgreSQL, create the `pizzas` and `orders` tables and run tests without requiring a database server.
+
+The roadmap suggests SQLAlchemy or psycopg. The choice affects how queries are written, how the schema is kept in sync, and how easy it is to test.
+
+## Options considered
+
+1. **Raw psycopg with SQL strings**: little abstraction and no ORM to learn. But every query is hand-written, results are tuples, and the schema is defined in yet another place (`schema.sql`). Tests would need a real Postgres or careful mocking.
+2. **SQLAlchemy 2.0 ORM**: models are Python classes, relationships (order → items → pizza) are explicit, and the same code runs on PostgreSQL and SQLite. The API layer uses typed objects instead of tuples.
+3. **SQLModel**: nicer syntax on top of SQLAlchemy, but a smaller ecosystem and one more abstraction while learning the fundamentals.
+
+## Decision
+
+Use **SQLAlchemy 2.0** with the `psycopg` (v3) driver, through the `postgresql+psycopg://` URL.
+
+The schema is defined in `api/app/models.py` and created with `Base.metadata.create_all()` at application startup. The menu is seeded if the `pizzas` table is empty. Tests override `DATABASE_URL` with an in-memory SQLite database, so they run fast and without Docker.
+
+## Consequences
+
+- The API is tested against a different engine (SQLite) than production (Postgres). We avoid Postgres-only types in Phase 1, and the Docker Compose smoke test remains the real verification.
+- `create_all()` does not alter existing tables. This is fine while the schema is young, but it is not a migration strategy.
+- Before the schema changes in a deployed environment (around Phase 6, when backups and infrastructure as code arrive), introduce **Alembic** and replace `create_all()`.
+- SQLAlchemy adds a dependency and some learning curve, but it keeps SQL injection protection and relationship loading consistent.
