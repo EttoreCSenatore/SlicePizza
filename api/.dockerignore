@@ -8,3 +8,7 @@ tests
 .vscode
 .DS_Store
 slicepizza.db
+
+# Never ship local secrets inside the image, even if a stray file appears.
+.env
+.env.*

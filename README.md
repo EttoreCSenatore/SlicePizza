@@ -83,6 +83,10 @@ SlicePizza/
    ```bash
    docker compose up --build
    ```
+   To wait until the stack is healthy before continuing:
+   ```bash
+   docker compose up -d --wait
+   ```
 3. In another terminal, check that it is alive:
    ```bash
    curl http://localhost:8000/health
@@ -107,7 +111,7 @@ SlicePizza/
 
 Interactive API docs: <http://localhost:8000/docs>.
 
-The database lives in the `pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
+The database lives in the `slicepizza_pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
 
 To stop everything: `docker compose down`.
 
