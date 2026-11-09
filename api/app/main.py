@@ -2,9 +2,10 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from .database import Base, SessionLocal, engine, get_db
@@ -29,6 +30,14 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(OperationalError)
+async def database_unavailable(
+    request: Request, exc: OperationalError
+) -> JSONResponse:
+    """Return 503 instead of 500 when the database cannot be reached."""
+    return JSONResponse(status_code=503, content={"detail": "Database unavailable"})
 
 
 def _load_order(db: Session, order_id: str) -> Order:

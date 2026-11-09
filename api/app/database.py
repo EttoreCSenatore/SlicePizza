@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from .config import settings
 
-engine_kwargs: dict = {}
+engine_kwargs: dict = {"pool_pre_ping": True}
 connect_args: dict = {}
 
 if settings.database_url.startswith("sqlite"):
@@ -17,6 +17,9 @@ if settings.database_url.startswith("sqlite"):
     if ":memory:" in settings.database_url:
         # All sessions must share the same in-memory database.
         engine_kwargs["poolclass"] = StaticPool
+else:
+    # Recycle connections before Postgres or a proxy drops them silently.
+    engine_kwargs["pool_recycle"] = 1800
 
 engine = create_engine(settings.database_url, connect_args=connect_args, **engine_kwargs)
 
