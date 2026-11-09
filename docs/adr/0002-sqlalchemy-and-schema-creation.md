@@ -20,11 +20,11 @@ The roadmap suggests SQLAlchemy or psycopg. The choice affects how queries are w
 
 Use **SQLAlchemy 2.0** with the `psycopg` (v3) driver, through the `postgresql+psycopg://` URL.
 
-The schema is defined in `api/app/models.py` and created with `Base.metadata.create_all()` at application startup. The menu is seeded if the `pizzas` table is empty. Tests override `DATABASE_URL` with an in-memory SQLite database, so they run fast and without Docker.
+The schema is defined in `api/app/models.py` and created with `Base.metadata.create_all()` at application startup. The menu is seeded if the `pizzas` table is empty. Tests use an in-memory SQLite database by default, so they run fast and without Docker. Setting `TEST_DATABASE_URL` runs the same suite against Postgres.
 
 ## Consequences
 
-- The API is tested against a different engine (SQLite) than production (Postgres). We avoid Postgres-only types in Phase 1, and the Docker Compose smoke test remains the real verification.
+- Locally, the API is tested against a different engine (SQLite) than production (Postgres). CI runs the suite on both, plus a Docker Compose smoke test, so Postgres-only behavior (32-bit integers, NUL characters, concurrent transactions) is still covered.
 - `create_all()` does not alter existing tables. This is fine while the schema is young, but it is not a migration strategy.
 - Before the schema changes in a deployed environment (around Phase 6, when backups and infrastructure as code arrive), introduce **Alembic** and replace `create_all()`.
 - SQLAlchemy adds a dependency and some learning curve, but it keeps SQL injection protection and relationship loading consistent.

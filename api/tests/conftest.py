@@ -1,13 +1,20 @@
 """Pytest fixtures.
 
-The environment variable is set before importing the app so the tests use an
-in-memory SQLite database instead of Postgres. Docker Compose still runs the
-real thing against Postgres.
+The tests use an in-memory SQLite database by default, so they need neither
+Docker nor Postgres. To run them against Postgres (CI does this), set
+TEST_DATABASE_URL, for example:
+
+    TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/slicepizza_test pytest
+
+A dedicated variable is used on purpose: the tests drop all tables, so they
+must never pick up a DATABASE_URL that points at your development database.
 """
 
 import os
 
-os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["DATABASE_URL"] = os.getenv(
+    "TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:"
+)
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -31,7 +38,7 @@ def database():
 @pytest.fixture
 def client():
     # Not used as a context manager, so the app lifespan does not run: the
-    # fixture above owns the database setup.
+    # fixture above owns the database setup. test_startup.py covers the lifespan.
     return TestClient(app)
 
 

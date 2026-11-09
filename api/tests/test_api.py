@@ -1,8 +1,12 @@
 """Tests for the menu and orders routes."""
 
-from sqlalchemy import select, text
+import uuid
 
-from app.models import Pizza
+from sqlalchemy import select, text, update
+
+from app import main
+from app.database import SessionLocal
+from app.models import Order, OrderStatus, Pizza
 
 ORDER_PAYLOAD = {
     "customer": {
@@ -132,9 +136,31 @@ def test_get_order(client):
 
 
 def test_get_unknown_order(client):
-    response = client.get("/orders/does-not-exist")
+    response = client.get(f"/orders/{uuid.uuid4()}")
 
     assert response.status_code == 404
+
+
+def test_get_order_with_malformed_id(client):
+    response = client.get("/orders/does-not-exist")
+
+    assert response.status_code == 422
+
+
+def test_order_items_keep_the_order_they_were_sent_in(client):
+    payload = {
+        "customer": ORDER_PAYLOAD["customer"],
+        "items": [
+            {"pizza_id": 5, "quantity": 1},
+            {"pizza_id": 1, "quantity": 1},
+            {"pizza_id": 3, "quantity": 1},
+        ],
+    }
+    order_id = create_order(client, payload).json()["id"]
+
+    response = client.get(f"/orders/{order_id}")
+
+    assert [item["pizza_id"] for item in response.json()["items"]] == [5, 1, 3]
 
 
 def test_order_follows_the_status_flow(client):
@@ -204,7 +230,45 @@ def test_status_update_rejects_unknown_status(client):
 
 def test_status_update_on_unknown_order(client):
     response = client.patch(
-        "/orders/does-not-exist/status", json={"status": "preparing"}
+        f"/orders/{uuid.uuid4()}/status", json={"status": "preparing"}
     )
 
     assert response.status_code == 404
+
+
+def test_status_update_changes_updated_at(client):
+    order = create_order(client).json()
+
+    response = client.patch(
+        f"/orders/{order['id']}/status", json={"status": "preparing"}
+    )
+
+    assert response.json()["updated_at"] >= order["updated_at"]
+
+
+def test_concurrent_status_change_is_rejected(client, monkeypatch):
+    """Simulate another request cancelling the order between our read and write."""
+    order_id = create_order(client).json()["id"]
+    original_load_order = main._load_order
+
+    def load_then_cancel_elsewhere(db, requested_id):
+        order = original_load_order(db, requested_id)
+        with SessionLocal() as other_request:
+            other_request.execute(
+                update(Order)
+                .where(Order.id == order.id)
+                .values(status=OrderStatus.CANCELLED)
+            )
+            other_request.commit()
+        return order
+
+    monkeypatch.setattr(main, "_load_order", load_then_cancel_elsewhere)
+
+    response = client.patch(
+        f"/orders/{order_id}/status", json={"status": "preparing"}
+    )
+
+    assert response.status_code == 409
+    assert "another request" in response.json()["detail"]
+    monkeypatch.undo()
+    assert client.get(f"/orders/{order_id}").json()["status"] == "cancelled"

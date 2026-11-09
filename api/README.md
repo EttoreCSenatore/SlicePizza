@@ -1,6 +1,6 @@
 # Orders API
 
-A **Python + FastAPI** API that serves the menu and receives the pizzeria's orders. It stores everything in **PostgreSQL** (SQLite is used only for local development without Docker and for the tests).
+A **Python + FastAPI** API that serves the menu and receives the pizzeria's orders. It stores everything in **PostgreSQL** (SQLite is used only by the tests and, if you ask for it explicitly, for a quick local run).
 
 ## Routes
 
@@ -55,20 +55,27 @@ docker compose up --build
 
 See the [root README](../README.md#getting-started).
 
-To run only the API locally (SQLite fallback):
+To run only the API on your machine (with auto-reload), against the Postgres from Docker Compose:
 
 ```bash
+docker compose up -d db          # from the repository root: only the database
+cd api
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
+
+set -a; source ../.env; set +a   # load POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+export POSTGRES_HOST=localhost   # Compose publishes Postgres on 127.0.0.1:5432
 uvicorn app.main:app --reload
 ```
 
-Set `DATABASE_URL` to point at Postgres when running locally, for example:
+For a quick run without Postgres, use SQLite explicitly:
 
 ```bash
-export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/slicepizza
+DATABASE_URL=sqlite:///./slicepizza.db uvicorn app.main:app --reload
 ```
+
+The API refuses to start if no database is configured, instead of silently writing somewhere unexpected.
 
 ## Tests
 
@@ -78,6 +85,18 @@ pytest
 ```
 
 The tests use an in-memory SQLite database (see `tests/conftest.py`), so they need neither Docker nor Postgres.
+
+To run the same tests against Postgres (CI does both):
+
+```bash
+docker run -d --name slicepizza-test-db -p 127.0.0.1:5433:5432 \
+  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=slicepizza_test \
+  postgres:16-alpine
+TEST_DATABASE_URL=postgresql+psycopg://test:test@localhost:5433/slicepizza_test pytest
+docker rm -f slicepizza-test-db
+```
+
+The variable is `TEST_DATABASE_URL`, not `DATABASE_URL`, on purpose: the tests drop all tables, so they must never point at your development database.
 
 ## Structure
 
@@ -102,9 +121,14 @@ api/
 
 | Variable | Purpose | Example |
 |---|---|---|
-| `DATABASE_URL` | Database connection | `postgresql+psycopg://user:password@db:5432/slicepizza` |
+| `POSTGRES_HOST` | Postgres host | `db` (Compose) or `localhost` |
+| `POSTGRES_PORT` | Postgres port (optional) | `5432` |
+| `POSTGRES_USER` | Database user | `slicepizza` |
+| `POSTGRES_PASSWORD` | Database password, any characters, no encoding needed | `p@ss:w/rd` |
+| `POSTGRES_DB` | Database name | `slicepizza` |
+| `DATABASE_URL` | Optional full URL; takes precedence over the variables above | `sqlite:///./slicepizza.db` |
 
-When running through Docker Compose, `DATABASE_URL` is built from `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` in the root `.env`.
+Docker Compose sets the `POSTGRES_*` variables from the root `.env`. The parts are passed separately, never pasted into a URL, so the password needs no URL-encoding.
 
 ## Schema note
 
