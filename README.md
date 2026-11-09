@@ -75,6 +75,18 @@ SlicePizza/
 
 By the end of Phase 1, this section will explain how to run the system with `docker compose up`.
 
+## Documentation
+
+The documentation site, built with [Docusaurus](https://docusaurus.io/), lives in [`docs-site/`](docs-site/). To run it locally:
+
+```bash
+cd docs-site
+npm install
+npm start
+```
+
+The site is served at http://localhost:3000. Build the static version with `npm run build`.
+
 ## Roadmap
 
 | Phase | Zé's request | Status |
