@@ -1,0 +1,14 @@
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+tests
+.idea
+.vscode
+.DS_Store
+slicepizza.db
+
+# Never ship local secrets inside the image, even if a stray file appears.
+.env
+.env.*

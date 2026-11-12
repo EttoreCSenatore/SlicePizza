@@ -8,6 +8,17 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# Local databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
 # Terraform (Phase 6)
 .terraform/
 *.tfstate
