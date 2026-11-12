@@ -1,0 +1,60 @@
+# Builds the Docusaurus site in docs-site/. On a Pull Request it only checks that the site
+# builds (broken links fail the build); on main it publishes it to GitHub Pages at
+# https://senatoreteam.github.io/SlicePizza/.
+# The site is built from docs-site/ and docs/adr/ (see docs-site/README.md), so both are watched.
+name: Docs site
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs-site/**", "docs/adr/**", ".github/workflows/docs-site.yml"]
+  pull_request:
+    paths: ["docs-site/**", "docs/adr/**", ".github/workflows/docs-site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time, and a newer push to the same branch replaces a PR build still running.
+concurrency:
+  group: docs-site-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Upload the site for GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs-site/build
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
