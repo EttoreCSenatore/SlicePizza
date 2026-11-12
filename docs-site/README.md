@@ -14,7 +14,7 @@ Install the dependencies:
 npm install
 ```
 
-Start the development server (http://localhost:3000/SlicePizza/):
+Start the development server (http://localhost:3000/):
 
 ```bash
 npm start
@@ -78,11 +78,14 @@ The [Docs site](../.github/workflows/docs-site.yml) workflow does exactly that:
 - On a Pull Request that touches those folders, it builds the site. A broken
   link fails the build, so it fails the check.
 - On `main`, it builds and publishes the site to GitHub Pages at
-  **https://senatoreteam.github.io/SlicePizza/** (see `baseUrl` in
+  **https://slicepizza-docs.senatore.tech** (see `url` in
   `docusaurus.config.js`). Nobody publishes by hand: merging is the deploy.
 
-GitHub Pages is set to **Source: GitHub Actions** (Settings → Pages). To
-publish again without a change, run the workflow from the Actions tab.
+GitHub Pages is set to **Source: GitHub Actions** and **Custom domain:
+slicepizza-docs.senatore.tech** (Settings → Pages). The DNS has
+`CNAME slicepizza-docs → senatoreteam.github.io`. The old address,
+https://senatoreteam.github.io/SlicePizza/, redirects to the custom domain.
+To publish again without a change, run the workflow from the Actions tab.
 
 ## Images
 
