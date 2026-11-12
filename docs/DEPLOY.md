@@ -1,12 +1,12 @@
 # Deploy
 
-The API runs on a shared server, behind `https://senatore.tech`. Nobody deploys by hand: **merging a Pull Request into `main` is the deploy.**
+The API runs on a shared server, behind **`https://slicepizza.senatore.tech`** (`https://senatore.tech` and `https://www.senatore.tech` serve the same API). Nobody deploys by hand: **merging a Pull Request into `main` is the deploy.**
 
 ```
 PR merged into main ──► GitHub Actions builds api/ ──► ghcr.io/senatoreteam/slicepizza-api:latest
                                                               │
                      server checks every 5 minutes ◄──────────┘
-                     new image? ──► replaces the API container ──► https://senatore.tech
+                     new image? ──► replaces the API container ──► https://slicepizza.senatore.tech
 ```
 
 - On a Pull Request, the [API image](../.github/workflows/api-image.yml) workflow only checks that the image builds. Nothing is published.
@@ -17,7 +17,7 @@ PR merged into main ──► GitHub Actions builds api/ ──► ghcr.io/senat
 
 | Requirement | Why |
 |---|---|
-| Listen on `0.0.0.0:8000` | The proxy sends `senatore.tech` traffic to port 8000 |
+| Listen on `0.0.0.0:8000` | The proxy sends the domains' traffic to port 8000 |
 | Run as a non-root user, needing no special Linux capabilities | The container runs with all capabilities dropped and `no-new-privileges` |
 | Fit in 512 MB of RAM and 1 CPU | Those are the container's limits |
 | Read settings from environment variables | Variables and secrets are set on the server, never in Git |
@@ -43,11 +43,11 @@ On first boot the API waits for Postgres to accept connections, creates the tabl
 
 ## Checking the deploy
 
-- `https://senatore.tech/health` answers when the API is up and connected to the database.
+- `https://slicepizza.senatore.tech/health` answers when the API is up and connected to the database.
 - The tag `sha-<commit>` on the running image shows which commit is live.
 
 ## One-time setup
 
 1. After the first image is published, make the package public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api` → **Package settings** → **Change visibility** → Public. (The server downloads it without a password.) Only organization owners can change it.
-2. On the server: create the Postgres container and its volume, set the API variables, run `ghcr.io/senatoreteam/slicepizza-api:latest` on port 8000 and route `senatore.tech` to it in the proxy.
-3. Point the domain's DNS to the server: `A senatore.tech → 179.66.139.4` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there.
+2. On the server: create the Postgres container and its volume, set the API variables, run `ghcr.io/senatoreteam/slicepizza-api:latest` on port 8000 and route `slicepizza.senatore.tech`, `senatore.tech` and `www.senatore.tech` to it in the proxy (on this server: the domains of the compose in Dokploy).
+3. Point the domains' DNS to the server: `A slicepizza → 179.66.139.4`, `A @ → 179.66.139.4` and `CNAME www → senatore.tech` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there; if the proxy tried before that, restart the API container so it tries again.
