@@ -1,0 +1,78 @@
+# Dependabot opens Pull Requests that update the project's dependencies. Every PR runs the
+# same checks as any other (tests, image build, docs site build), so nothing is merged blind.
+# Security fixes come as separate PRs as soon as an advisory is published, outside this schedule.
+version: 2
+
+updates:
+  # Orders API: api/requirements.txt and api/requirements-dev.txt.
+  - package-ecosystem: pip
+    directory: /api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Minor and patch updates in one PR a week; a major update gets a PR of its own.
+      api-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Documentation site: docs-site/package.json.
+  - package-ecosystem: npm
+    directory: /docs-site
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # The @docusaurus/* packages must stay on the same version, so they move together.
+      docusaurus:
+        patterns: ["@docusaurus/*"]
+      docs-site-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Base image of api/Dockerfile (python:*-slim).
+  - package-ecosystem: docker
+    directory: /api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Images in docker-compose.yml (postgres).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # A new Postgres major version needs a dump and restore of the data, and the server
+      # runs the same version as docker-compose.yml. That upgrade is planned by hand.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+
+  # Actions used in .github/workflows/.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      github-actions:
+        patterns: ["*"]
