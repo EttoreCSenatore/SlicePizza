@@ -1,5 +1,5 @@
 # Builds the Orders API image. On a Pull Request it only checks that the image builds;
-# on main it publishes ghcr.io/ettorecsenatore/slicepizza-api, and the server that hosts
+# on main it publishes ghcr.io/senatoreteam/slicepizza-api, and the server that hosts
 # senatore.tech picks up the new :latest within 5 minutes (see docs/DEPLOY.md).
 name: API image
 
@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/ettorecsenatore/slicepizza-api
+  IMAGE: ghcr.io/senatoreteam/slicepizza-api
 
 jobs:
   image:
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Until Phase 1 adds api/Dockerfile there is nothing to build, so the job just passes.
+      # Safety net: without api/Dockerfile there is nothing to build, so the job just passes.
       - name: Check for api/Dockerfile
         id: check
         run: |
