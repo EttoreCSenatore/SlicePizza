@@ -1,6 +1,6 @@
 # Builds the Orders API image. On a Pull Request it only checks that the image builds;
 # on main it publishes ghcr.io/senatoreteam/slicepizza-api, and the server that hosts
-# senatore.tech picks up the new :latest within 5 minutes (see docs/DEPLOY.md).
+# slicepizza.senatore.tech picks up the new :latest within 5 minutes (see docs/DEPLOY.md).
 name: API image
 
 on:
@@ -22,7 +22,7 @@ jobs:
   image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Safety net: without api/Dockerfile there is nothing to build, so the job just passes.
       - name: Check for api/Dockerfile
@@ -31,12 +31,12 @@ jobs:
           if [ -f api/Dockerfile ]; then echo "found=true" >> "$GITHUB_OUTPUT"
           else echo "found=false" >> "$GITHUB_OUTPUT"; echo "::notice::api/Dockerfile does not exist yet; skipping the image."; fi
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.check.outputs.found == 'true'
 
       - name: Log in to GHCR
         if: steps.check.outputs.found == 'true' && github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -45,7 +45,7 @@ jobs:
       - name: Tags
         if: steps.check.outputs.found == 'true'
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE }}
           tags: |
@@ -54,7 +54,7 @@ jobs:
 
       - name: Build (and publish, on main)
         if: steps.check.outputs.found == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: api
           platforms: linux/amd64
