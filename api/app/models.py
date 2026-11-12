@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, func
+from sqlalchemy import BigInteger, DateTime, Enum as SAEnum, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -42,6 +42,9 @@ class Pizza(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    # Fetch server-generated values (created_at, updated_at) with RETURNING in
+    # the same INSERT/UPDATE, instead of a separate SELECT afterwards.
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
@@ -61,7 +64,8 @@ class Order(Base):
         default=OrderStatus.RECEIVED,
         nullable=False,
     )
-    total_cents: Mapped[int] = mapped_column(nullable=False)
+    # BIGINT: a large order must not overflow Postgres' 32-bit INTEGER.
+    total_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -72,8 +76,12 @@ class Order(Base):
         nullable=False,
     )
 
+    # Loading strategy is chosen per query (see _load_order in main.py).
+    # order_by keeps the items in the order the customer sent them.
     items: Mapped[list["OrderItem"]] = relationship(
-        back_populates="order", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="order",
+        cascade="all, delete-orphan",
+        order_by="OrderItem.id",
     )
 
 
@@ -81,10 +89,13 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Postgres does not index foreign keys automatically.
     order_id: Mapped[str] = mapped_column(
-        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    pizza_id: Mapped[int] = mapped_column(ForeignKey("pizzas.id"), nullable=False)
+    pizza_id: Mapped[int] = mapped_column(
+        ForeignKey("pizzas.id"), nullable=False, index=True
+    )
     quantity: Mapped[int] = mapped_column(nullable=False)
     # Snapshot of the price at the moment the order was placed.
     unit_price_cents: Mapped[int] = mapped_column(nullable=False)

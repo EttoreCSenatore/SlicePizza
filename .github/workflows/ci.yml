@@ -10,8 +10,35 @@ permissions:
 
 jobs:
   tests:
-    name: pytest (Python 3.12)
+    # The same suite on SQLite (fast) and on real Postgres, which catches what
+    # SQLite does not: 32-bit integers, NUL characters, row locks...
+    name: pytest (${{ matrix.database }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: sqlite
+            test_database_url: ""
+          - database: postgres
+            test_database_url: postgresql+psycopg://slicepizza:slicepizza@localhost:5432/slicepizza_test
+    services:
+      postgres:
+        # An empty image skips the service, so only the postgres leg starts it.
+        image: ${{ matrix.database == 'postgres' && 'postgres:16-alpine' || '' }}
+        env:
+          POSTGRES_USER: slicepizza
+          POSTGRES_PASSWORD: slicepizza
+          POSTGRES_DB: slicepizza_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U slicepizza -d slicepizza_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: ${{ matrix.test_database_url }}
     steps:
       - uses: actions/checkout@v4
 

@@ -117,7 +117,7 @@ To stop everything: `docker compose down`.
 
 ### Running the tests
 
-The tests use an in-memory SQLite database, so they do not need Docker or Postgres:
+The tests use an in-memory SQLite database, so they do not need Docker or Postgres (CI also runs them against Postgres; see [api/README.md](api/README.md#tests)):
 
 ```bash
 cd api

@@ -1,15 +1,40 @@
 """Pytest fixtures.
 
-The environment variable is set before importing the app so the tests use an
-in-memory SQLite database instead of Postgres. Docker Compose still runs the
-real thing against Postgres.
+The tests use an in-memory SQLite database by default, so they need neither
+Docker nor Postgres. To run them against Postgres (CI does this), set
+TEST_DATABASE_URL, for example:
+
+    TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/slicepizza_test pytest
+
+The tests drop all tables, so this file makes sure they never touch a real
+database:
+
+- a dedicated variable is used, never DATABASE_URL or POSTGRES_*;
+- an empty TEST_DATABASE_URL means "not set" (SQLite);
+- a non-SQLite database must have "test" in its name.
 """
 
 import os
 
-os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+import pytest
+from sqlalchemy.engine import make_url
 
-import pytest  # noqa: E402
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL") or "sqlite+pysqlite:///:memory:"
+
+_test_url = make_url(TEST_DATABASE_URL)
+if _test_url.get_backend_name() != "sqlite" and "test" not in (_test_url.database or ""):
+    pytest.exit(
+        f"Refusing to run the tests against database {_test_url.database!r}: they "
+        "drop all tables. Use a database whose name contains 'test', e.g. "
+        "slicepizza_test.",
+        returncode=2,
+    )
+
+# Make sure no Postgres settings from the shell (e.g. a sourced .env) are used.
+for _name in ("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"):
+    os.environ.pop(_name, None)
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import Base, SessionLocal, engine  # noqa: E402
@@ -31,7 +56,7 @@ def database():
 @pytest.fixture
 def client():
     # Not used as a context manager, so the app lifespan does not run: the
-    # fixture above owns the database setup.
+    # fixture above owns the database setup. test_startup.py covers the lifespan.
     return TestClient(app)
 
 
