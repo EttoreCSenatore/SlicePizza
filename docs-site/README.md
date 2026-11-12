@@ -73,7 +73,7 @@ on:
     paths: ["docs-site/**", "docs/adr/**"]
 ```
 
-The site is configured for GitHub Pages at `https://ettorecsenatore.github.io/SlicePizza/`
+The site is configured for GitHub Pages at `https://senatoreteam.github.io/SlicePizza/`
 (see `baseUrl` in `docusaurus.config.js`).
 
 ## Images
