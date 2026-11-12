@@ -1,0 +1,41 @@
+# Adds a release-date table to every Dependabot Pull Request: each package, the old and new
+# versions and when they were published. If a new version is younger than the 7-day cooldown in
+# .github/dependabot.yml, the table comes with a warning. See .github/scripts/dependabot_release_dates.py.
+name: Dependabot release dates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  # Run by hand for a PR that was open before this workflow existed.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull Request number
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: dependabot-release-dates-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  release-dates:
+    # Only Dependabot's PRs; a manual run checks the branch name itself.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      # The script always comes from main, never from the PR branch being checked.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts
+
+      - name: Write the release-date table into the PR description
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+        run: python3 -I .github/scripts/dependabot_release_dates.py "$PR_NUMBER"
