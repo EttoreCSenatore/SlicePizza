@@ -14,7 +14,7 @@ import repoLinks from './src/remark/repo-links.js';
 
 const siteDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(siteDir, '..');
-const repoUrl = 'https://github.com/EttoreCSenatore/SlicePizza';
+const repoUrl = 'https://github.com/SenatoreTeam/SlicePizza';
 const baseUrl = '/SlicePizza/';
 
 // The docs/adr/ files the site does not show as pages: README.md (how to
@@ -54,13 +54,13 @@ const config = {
 
   // GitHub Pages serves a project site at https://<user>.github.io/<repo>/,
   // so every asset and link must live under /SlicePizza/.
-  url: 'https://ettorecsenatore.github.io',
+  url: 'https://senatoreteam.github.io',
   baseUrl,
   // GitHub Pages redirects /page to /page/ unless this is set explicitly.
   trailingSlash: false,
 
   // GitHub pages deployment config.
-  organizationName: 'EttoreCSenatore',
+  organizationName: 'SenatoreTeam',
   projectName: 'SlicePizza',
 
   onBrokenLinks: 'throw',
@@ -171,7 +171,7 @@ const config = {
             label: 'ADRs',
           },
           {
-            href: 'https://github.com/EttoreCSenatore/SlicePizza',
+            href: 'https://github.com/SenatoreTeam/SlicePizza',
             label: 'GitHub',
             position: 'right',
           },
@@ -198,7 +198,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/EttoreCSenatore/SlicePizza',
+                href: 'https://github.com/SenatoreTeam/SlicePizza',
               },
             ],
           },

@@ -67,7 +67,7 @@ SlicePizza/
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:EttoreCSenatore/SlicePizza.git
+   git clone git@github.com:SenatoreTeam/SlicePizza.git
    cd SlicePizza
    ```
 2. Read the [architecture](docs/ARCHITECTURE.md) to understand where the system is headed.
