@@ -69,6 +69,9 @@ def parse_date(value):
 
 def pypi_date(name, version):
     data = http_json(f"https://pypi.org/pypi/{urllib.parse.quote(name)}/{urllib.parse.quote(version)}/json")
+    if not data and version.count(".") == 1:
+        # A range floor like ">=2.0" names the release 2.0.0 on PyPI.
+        data = http_json(f"https://pypi.org/pypi/{urllib.parse.quote(name)}/{urllib.parse.quote(version)}.0/json")
     if not data:
         return None
     times = [parse_date(f.get("upload_time_iso_8601")) for f in data.get("urls", [])]
@@ -143,7 +146,7 @@ def updated_dependencies(message):
     return deps
 
 
-def previous_version(message, name, new):
+def previous_version(message, name, new, title=""):
     """Old version, from the lines Dependabot writes for a single bump, a group or a range."""
     escaped = re.escape(name)
     patterns = [
@@ -157,7 +160,12 @@ def previous_version(message, name, new):
             return found.group(1).rstrip(".")
     # Requirement-range updates only carry a compare link: .../compare/8.0.0...9.2.0
     found = re.search(r"/compare/v?([^.\s/][^\s/]*?)\.\.\.v?" + re.escape(new.lstrip("v")) + r"\b", message)
-    return found.group(1) if found else ""
+    if found:
+        return found.group(1)
+    # Otherwise the PR title has the old range: "Update x requirement from <3.0,>=2.0 to >=2.1.8,<3.0".
+    found = re.search(r"requirement from (\S+) to ", title)
+    floor = re.search(r">=\s*([0-9][^,\s]*)", found.group(1)) if found else None
+    return floor.group(1) if floor else ""
 
 
 # --- Table -----------------------------------------------------------------------------------
@@ -249,7 +257,7 @@ def main():
     now = dt.datetime.now(dt.timezone.utc)
     rows = []
     for dep in deps:
-        old = previous_version(message, dep["name"], dep["to"])
+        old = previous_version(message, dep["name"], dep["to"], pr["title"])
         rows.append({
             "name": dep["name"], "from": old, "to": dep["to"],
             "from_date": release_date(ecosystem, dep["name"], old, token),
