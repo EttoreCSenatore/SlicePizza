@@ -55,6 +55,7 @@ SlicePizza/
 ├── frontend/       # Menu website + kitchen dashboard   → Phase 2
 ├── infra/          # Terraform, Ansible, Kubernetes     → Phases 6 and 7
 ├── docs/           # Documentation, roadmap and ADRs
+├── docs-site/      # Documentation website (Docusaurus)
 ├── .github/        # Templates and CI/CD pipelines      → Phase 4
 ├── docker-compose.yml   # runs everything locally       → Phase 1
 └── .env.example         # environment variable template → Phase 1
@@ -62,7 +63,7 @@ SlicePizza/
 
 ## Getting started
 
-**Prerequisites:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) with Docker Compose, and Python 3.12 or newer.
+**Prerequisites:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) with Docker Compose, and Python 3.12 or newer. To work on the documentation site, also [Node.js](https://nodejs.org/) 20 or newer.
 
 1. Clone the repository:
    ```bash
@@ -77,7 +78,7 @@ By the end of Phase 1, this section will explain how to run the system with `doc
 
 ## Documentation
 
-The documentation site, built with [Docusaurus](https://docusaurus.io/), lives in [`docs-site/`](docs-site/). To run it locally:
+The documentation site, built with [Docusaurus](https://docusaurus.io/), lives in [`docs-site/`](docs-site/). It needs Node.js 20 or newer. To run it locally:
 
 ```bash
 cd docs-site
@@ -85,7 +86,7 @@ npm install
 npm start
 ```
 
-The site is served at http://localhost:3000. Build the static version with `npm run build`.
+The site is served at http://localhost:3000/SlicePizza/. Build the static version with `npm run build`. The ADRs on the site are rendered straight from [`docs/adr/`](docs/adr/).
 
 ## Roadmap
 
