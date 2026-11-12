@@ -1,6 +1,6 @@
 # Builds the Docusaurus site in docs-site/. On a Pull Request it only checks that the site
 # builds (broken links fail the build); on main it publishes it to GitHub Pages at
-# https://senatoreteam.github.io/SlicePizza/.
+# https://slicepizza-docs.senatore.tech.
 # The site is built from docs-site/ and docs/adr/ (see docs-site/README.md), so both are watched.
 name: Docs site
 

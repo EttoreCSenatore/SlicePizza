@@ -1,6 +1,6 @@
 # Builds the Orders API image. On a Pull Request it only checks that the image builds;
 # on main it publishes ghcr.io/senatoreteam/slicepizza-api, and the server that hosts
-# senatore.tech picks up the new :latest within 5 minutes (see docs/DEPLOY.md).
+# slicepizza.senatore.tech picks up the new :latest within 5 minutes (see docs/DEPLOY.md).
 name: API image
 
 on:
