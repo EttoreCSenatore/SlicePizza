@@ -73,8 +73,16 @@ on:
     paths: ["docs-site/**", "docs/adr/**"]
 ```
 
-The site is configured for GitHub Pages at `https://senatoreteam.github.io/SlicePizza/`
-(see `baseUrl` in `docusaurus.config.js`).
+The [Docs site](../.github/workflows/docs-site.yml) workflow does exactly that:
+
+- On a Pull Request that touches those folders, it builds the site. A broken
+  link fails the build, so it fails the check.
+- On `main`, it builds and publishes the site to GitHub Pages at
+  **https://senatoreteam.github.io/SlicePizza/** (see `baseUrl` in
+  `docusaurus.config.js`). Nobody publishes by hand: merging is the deploy.
+
+GitHub Pages is set to **Source: GitHub Actions** (Settings → Pages). To
+publish again without a change, run the workflow from the Actions tab.
 
 ## Images
 
