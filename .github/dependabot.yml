@@ -1,6 +1,13 @@
 # Dependabot opens Pull Requests that update the project's dependencies. Every PR runs the
 # same checks as any other (tests, image build, docs site build), so nothing is merged blind.
 # Security fixes come as separate PRs as soon as an advisory is published, outside this schedule.
+#
+# Cooldown: a version is only proposed once it has been public for 7 days. A hijacked or
+# malicious release is usually found and pulled within hours or days, so waiting a week keeps
+# it out. Security updates ignore the cooldown, so fixes for known vulnerabilities are not delayed.
+#
+# The "Dependabot release dates" workflow adds a table with each package's old and new versions
+# and their release dates to every Dependabot PR, with a warning if a version is younger than 7 days.
 version: 2
 
 updates:
@@ -12,6 +19,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore(deps)"
     groups:
@@ -27,6 +36,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore(deps)"
     groups:
@@ -44,6 +55,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore(deps)"
 
@@ -55,6 +68,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore(deps)"
     ignore:
@@ -71,6 +86,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "ci(deps)"
     groups:
