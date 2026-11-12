@@ -15,7 +15,7 @@ import repoLinks from './src/remark/repo-links.js';
 const siteDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(siteDir, '..');
 const repoUrl = 'https://github.com/SenatoreTeam/SlicePizza';
-const baseUrl = '/SlicePizza/';
+const baseUrl = '/';
 
 // The docs/adr/ files the site does not show as pages: README.md (how to
 // write an ADR, with a hand-maintained table) and the blank template.
@@ -52,9 +52,9 @@ const config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // GitHub Pages serves a project site at https://<user>.github.io/<repo>/,
-  // so every asset and link must live under /SlicePizza/.
-  url: 'https://senatoreteam.github.io',
+  // GitHub Pages serves the site on its own domain (Settings → Pages → Custom domain),
+  // so it lives at the root. https://senatoreteam.github.io/SlicePizza/ redirects here.
+  url: 'https://slicepizza-docs.senatore.tech',
   baseUrl,
   // GitHub Pages redirects /page to /page/ unless this is set explicitly.
   trailingSlash: false,

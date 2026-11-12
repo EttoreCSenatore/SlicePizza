@@ -138,7 +138,7 @@ npm install
 npm start
 ```
 
-The site is served at http://localhost:3000/SlicePizza/. Build the static version with `npm run build`. The ADRs on the site are rendered straight from [`docs/adr/`](docs/adr/).
+The site is served at http://localhost:3000/. The published version is at https://slicepizza-docs.senatore.tech. Build the static version with `npm run build`. The ADRs on the site are rendered straight from [`docs/adr/`](docs/adr/).
 
 ## Roadmap
 
