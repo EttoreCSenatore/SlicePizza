@@ -16,3 +16,4 @@ An accepted ADR is not edited. If the decision changes, write a new ADR and mark
 | No. | Title | Status |
 |---|---|---|
 | [0001](0001-monorepo.md) | Use a single repository (monorepo) | Accepted |
+| [0002](0002-sqlalchemy-and-schema-creation.md) | SQLAlchemy ORM and schema creation on startup | Accepted |

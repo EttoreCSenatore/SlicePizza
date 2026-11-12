@@ -55,6 +55,7 @@ SlicePizza/
 ├── frontend/       # Menu website + kitchen dashboard   → Phase 2
 ├── infra/          # Terraform, Ansible, Kubernetes     → Phases 6 and 7
 ├── docs/           # Documentation, roadmap and ADRs
+├── docs-site/      # Documentation website (Docusaurus)
 ├── .github/        # Templates and CI/CD pipelines      → Phase 4
 ├── docker-compose.yml   # runs everything locally       → Phase 1
 └── .env.example         # environment variable template → Phase 1
@@ -62,7 +63,7 @@ SlicePizza/
 
 ## Getting started
 
-**Prerequisites:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) with Docker Compose, and Python 3.12 or newer.
+**Prerequisites:** [Git](https://git-scm.com/), [Docker](https://docs.docker.com/get-docker/) with Docker Compose, and Python 3.12 or newer. To work on the documentation site, also [Node.js](https://nodejs.org/) 20 or newer.
 
 1. Clone the repository:
    ```bash
@@ -71,15 +72,79 @@ SlicePizza/
    ```
 2. Read the [architecture](docs/ARCHITECTURE.md) to understand where the system is headed.
 3. Read the [contribution workflow](CONTRIBUTING.md): branches, commits and Pull Requests.
-4. Open [Phase 1 of the ROADMAP](docs/ROADMAP.md#phase-1-i-want-to-see-it-running-on-your-computer) and start with the first task.
+4. Open [Phase 1 of the ROADMAP](docs/ROADMAP.md#phase-1-i-want-to-see-it-running-on-your-computer) to see the task list.
 
-By the end of Phase 1, this section will explain how to run the system with `docker compose up`.
+### Running the system (Phase 1)
+
+1. Create your local environment file (it is ignored by Git):
+   ```bash
+   cp .env.example .env
+   ```
+2. Build and start the API and Postgres:
+   ```bash
+   docker compose up --build
+   ```
+   To wait until the stack is healthy before continuing:
+   ```bash
+   docker compose up -d --wait
+   ```
+3. In another terminal, check that it is alive:
+   ```bash
+   curl http://localhost:8000/health
+   curl http://localhost:8000/menu
+   ```
+4. Create an order:
+   ```bash
+   curl -X POST http://localhost:8000/orders \
+     -H "Content-Type: application/json" \
+     -d '{
+       "customer": {
+         "name": "Maria",
+         "phone": "+55 11 98888-7777",
+         "address": "Av. Paulista, 100"
+       },
+       "items": [
+         { "pizza_id": 1, "quantity": 2 },
+         { "pizza_id": 4, "quantity": 1 }
+       ]
+     }'
+   ```
+
+Interactive API docs: <http://localhost:8000/docs>.
+
+The database lives in the `slicepizza_pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
+
+To stop everything: `docker compose down`.
+
+### Running the tests
+
+The tests use an in-memory SQLite database, so they do not need Docker or Postgres (CI also runs them against Postgres; see [api/README.md](api/README.md#tests)):
+
+```bash
+cd api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest
+```
+
+## Documentation
+
+The documentation site, built with [Docusaurus](https://docusaurus.io/), lives in [`docs-site/`](docs-site/). It needs Node.js 20 or newer. To run it locally:
+
+```bash
+cd docs-site
+npm install
+npm start
+```
+
+The site is served at http://localhost:3000/SlicePizza/. Build the static version with `npm run build`. The ADRs on the site are rendered straight from [`docs/adr/`](docs/adr/).
 
 ## Roadmap
 
 | Phase | Zé's request | Status |
 |---|---|---|
-| 1 | "I want to see it running on your computer" | 🚧 In progress |
+| 1 | "I want to see it running on your computer" | ✅ Done |
 | 2 | "I want the site live on my own domain" | ⏳ |
 | 3 | "Customers want to know when their pizza is on the way" | ⏳ |
 | 4 | "Every time you change something, something breaks" | ⏳ |

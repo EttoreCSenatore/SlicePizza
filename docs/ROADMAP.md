@@ -11,18 +11,18 @@ Check the boxes as you make progress.
 **Goal:** the orders API running locally, in containers, saving to the database.
 
 - [x] Initial repository structure and documentation
-- [ ] API with `GET /health` and `GET /menu` (menu hardcoded, to start)
-- [ ] First automated test with pytest
-- [ ] Dockerfile for the API
-- [ ] `docker-compose.yml` with API + Postgres
-- [ ] `.env.example` with the database variables (the real `.env` never goes into Git)
-- [ ] Connect the API to Postgres (suggestion: SQLAlchemy or psycopg)
-- [ ] Create the `pizzas` and `orders` tables
-- [ ] Move the menu into the database
-- [ ] `POST /orders`: create an order
-- [ ] `GET /orders/{id}`: get an order
-- [ ] `PATCH /orders/{id}/status`: change the status (`received` → `preparing` → `out_for_delivery` → `delivered`)
-- [ ] Tests for the new routes
+- [x] API with `GET /health` and `GET /menu` (menu hardcoded, to start)
+- [x] First automated test with pytest
+- [x] Dockerfile for the API
+- [x] `docker-compose.yml` with API + Postgres
+- [x] `.env.example` with the database variables (the real `.env` never goes into Git)
+- [x] Connect the API to Postgres (suggestion: SQLAlchemy or psycopg)
+- [x] Create the `pizzas` and `orders` tables
+- [x] Move the menu into the database
+- [x] `POST /orders`: create an order
+- [x] `GET /orders/{id}`: get an order
+- [x] `PATCH /orders/{id}/status`: change the status (`received` → `preparing` → `out_for_delivery` → `delivered`)
+- [x] Tests for the new routes
 
 **Done when:** `docker compose up` brings everything up from scratch, and an order you created is still saved after `docker compose down` + `docker compose up`.
 

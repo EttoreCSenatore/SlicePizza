@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Crust -->
+  <path d="M6 14 Q32 2 58 14 L54 21 Q32 10 10 21 Z" fill="#c8833a"/>
+  <!-- Cheese -->
+  <path d="M10 21 Q32 10 54 21 L32 60 Z" fill="#f6c445"/>
+  <!-- Pepperoni -->
+  <circle cx="24" cy="25" r="4.5" fill="#d64933"/>
+  <circle cx="39" cy="27" r="4" fill="#d64933"/>
+  <circle cx="31" cy="40" r="3.8" fill="#d64933"/>
+</svg>

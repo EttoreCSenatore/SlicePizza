@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# The ``app`` package is imported from the api/ directory, so make sure it is
+# on sys.path even when pytest is invoked through its console script.
+pythonpath = ["."]
+testpaths = ["tests"]
