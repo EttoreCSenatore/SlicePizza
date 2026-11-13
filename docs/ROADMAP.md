@@ -2,11 +2,13 @@
 
 Each phase starts with a **request from Zé**, the pizzeria owner. The request is the problem; the tasks are the solution; the **definition of done** tells you when the phase is over.
 
-Check the boxes as you make progress.
+Check the boxes as you make progress, and keep each phase's **Status** line in step with the roadmap table in the [README](../README.md#roadmap): ✅ Done, 🚧 In progress or ⏳ Not started.
 
 ---
 
 ## Phase 1: "I want to see it running on your computer"
+
+**Status:** ✅ Done
 
 **Goal:** the orders API running locally, in containers, saving to the database.
 
@@ -32,6 +34,8 @@ Check the boxes as you make progress.
 
 ## Phase 2: "I want the site live on my own domain"
 
+**Status:** 🚧 In progress
+
 **Goal:** the system reachable from the internet, over HTTPS, on your domain.
 
 - [ ] Register a domain (e.g. Registro.br, Cloudflare or Namecheap)
@@ -54,12 +58,14 @@ Check the boxes as you make progress.
 
 ## Phase 3: "Customers want to know when their pizza is on the way"
 
+**Status:** 🚧 In progress
+
 **Goal:** notify the customer on every status change, without slowing down the API.
 
 - [x] Add RabbitMQ to `docker-compose.yml`
 - [x] The API publishes an event to the queue when an order's status changes (through an outbox, [ADR 0004](adr/0004-order-events-outbox-rabbitmq.md))
-- [ ] Create the worker in `worker/` that consumes the queue
-- [ ] Create a Telegram bot and send the notification from the worker
+- [x] Create the worker in `worker/` that consumes the queue ([ADR 0005](adr/0005-notification-worker.md))
+- [ ] Create a Telegram bot and send the notification from the worker (the pizzeria chat works; customers next)
 - [ ] Build the kitchen dashboard (`admin.yourdomain.com`)
 
 **Done when:** if you take the worker down, messages wait in the queue and are sent when it comes back.
@@ -69,6 +75,8 @@ Check the boxes as you make progress.
 ---
 
 ## Phase 4: "Every time you change something, something breaks"
+
+**Status:** ⏳ Not started
 
 **Goal:** all code goes through automated tests before reaching production.
 
@@ -86,6 +94,8 @@ Check the boxes as you make progress.
 
 ## Phase 5: "The site went down Friday night and nobody noticed"
 
+**Status:** ⏳ Not started
+
 **Goal:** know something broke before a customer complains.
 
 - [ ] `/health` route on every service
@@ -101,6 +111,8 @@ Check the boxes as you make progress.
 ---
 
 ## Phase 6: "The server died and we lost the orders"
+
+**Status:** ⏳ Not started
 
 **Goal:** be able to rebuild everything from scratch, with the data, quickly.
 
@@ -119,6 +131,8 @@ Check the boxes as you make progress.
 
 ## Phase 7: "We're running a R$20 pizza promo on Friday"
 
+**Status:** ⏳ Not started
+
 **Goal:** handle much more traffic without going down.
 
 - [ ] Load test with k6 to find the bottleneck
@@ -136,6 +150,8 @@ Check the boxes as you make progress.
 ---
 
 ## Phase 8 (bonus): "I heard hackers attack pizzerias"
+
+**Status:** ⏳ Not started
 
 **Goal:** close the most obvious doors.
 

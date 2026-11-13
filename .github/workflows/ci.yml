@@ -62,38 +62,88 @@ jobs:
   lock-files:
     # requirements*.txt are generated from requirements*.in. If someone edits an .in file
     # and forgets to regenerate, the image would not get the change: fail here instead.
-    name: lock files up to date
+    # api/ and worker/ each have their own lock files, checked the same way.
+    name: lock files up to date (${{ matrix.service }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, worker]
     steps:
       - uses: actions/checkout@v7
 
-      # The lock files are resolved for one Python version, the one in api/.python-version.
+      # The lock files are resolved for one Python version, the one in <service>/.python-version.
       # Dependabot bumps the FROM line of the Dockerfile on its own, so a new Python in the
       # image must fail here until .python-version and the lock files follow it.
       - name: Same Python in the image and in .python-version
+        env:
+          SERVICE: ${{ matrix.service }}
         run: |
-          want="$(cat api/.python-version)"
-          if ! grep -Eq "^FROM python:${want}-slim([@ ]|\$)" api/Dockerfile; then
-            echo "::error file=api/Dockerfile::The FROM line of api/Dockerfile is not python:${want}-slim (api/.python-version). Update .python-version and regenerate the lock files (see api/README.md#dependencies)."
+          want="$(cat "$SERVICE/.python-version")"
+          if ! grep -Eq "^FROM python:${want}-slim([@ ]|\$)" "$SERVICE/Dockerfile"; then
+            echo "::error file=$SERVICE/Dockerfile::The FROM line of $SERVICE/Dockerfile is not python:${want}-slim ($SERVICE/.python-version). Update .python-version and regenerate the lock files (see $SERVICE/README.md#dependencies)."
             exit 1
           fi
 
       - uses: actions/setup-python@v7
         with:
-          python-version-file: api/.python-version
+          python-version-file: ${{ matrix.service }}/.python-version
 
       - name: Regenerate the lock files
-        run: api/scripts/compile-requirements.sh
+        run: ${{ matrix.service }}/scripts/compile-requirements.sh
 
       # Comment lines are ignored (the header and the "# via" notes depend on the pip-tools
       # version, and Dependabot runs its own); package versions, markers and hashes must match.
       # The script takes every hash from PyPI again, so a hash edited by hand shows up here.
       - name: Compare with the committed ones
+        env:
+          SERVICE: ${{ matrix.service }}
         run: |
-          if ! git diff --exit-code --ignore-matching-lines='^[[:space:]]*#' -- 'api/requirements*.txt'; then
-            echo "::error::api/requirements*.txt are out of date. Run api/scripts/compile-requirements.sh (see api/README.md#dependencies) and commit the result."
+          if ! git diff --exit-code --ignore-matching-lines='^[[:space:]]*#' -- "$SERVICE/requirements*.txt"; then
+            echo "::error::$SERVICE/requirements*.txt are out of date. Run $SERVICE/scripts/compile-requirements.sh (see $SERVICE/README.md#dependencies) and commit the result."
             exit 1
           fi
+
+  worker-tests:
+    # The worker's unit tests, plus its integration tests against a real RabbitMQ, the
+    # same version as docker-compose.yml (RABBITMQ_TEST_HOST turns them on).
+    name: pytest (worker)
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:4.3.4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: slicepizza
+          RABBITMQ_DEFAULT_PASS: slicepizza
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 12
+          --health-start-period 20s
+    env:
+      RABBITMQ_TEST_HOST: localhost
+      RABBITMQ_TEST_USER: slicepizza
+      RABBITMQ_TEST_PASSWORD: slicepizza
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: worker/.python-version
+          cache: pip
+          cache-dependency-path: worker/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: worker
+        # The same rules as the image: only the versions and hashes in the lock file, wheels only.
+        run: pip install --require-hashes "--only-binary=:all:" -r requirements-dev.txt
+
+      - name: Run tests
+        working-directory: worker
+        run: pytest -q
 
   docker-smoke:
     name: docker compose smoke test
@@ -133,12 +183,19 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"customer":{"name":"CI","phone":"+55 11 90000-0000","address":"Rua do Teste, 1"},"items":[{"pizza_id":1,"quantity":1}]}'
 
-      # An order created above, before any queue existed, must still reach the
-      # queue bound here: the outbox kept its event (ADR 0004).
+      # A new order and a status change reach a queue bound to the events exchange,
+      # in order, with the right message properties (ADR 0004).
       - name: Check that order events reach RabbitMQ
         run: |
           set -a; . ./.env; set +a
           python3 .github/scripts/smoke_order_events.py
+
+      # Phase 3's "done when": with the worker down, messages wait in its queue and are
+      # handled when it comes back.
+      - name: Check that messages wait for the worker
+        run: |
+          set -a; . ./.env; set +a
+          python3 .github/scripts/smoke_worker_down.py
 
       - name: Dump logs
         if: always()

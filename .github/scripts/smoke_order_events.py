@@ -1,11 +1,13 @@
 """Smoke test for order events, against the running docker compose stack.
 
-1. Creates an order through the web container, before any queue exists:
-   RabbitMQ cannot route its event yet, so it must wait in the outbox.
-2. Binds a temporary queue to the events exchange (management HTTP API).
-3. Changes the order's status.
-4. Expects both events, in order, as persistent JSON messages whose
+1. Binds a temporary queue to the events exchange (management HTTP API),
+   next to the worker's own queue.
+2. Creates an order through the web container and changes its status.
+3. Expects both events, in order, as persistent JSON messages whose
    message_id is the event_id.
+
+(The "no queue at all: the event waits in the outbox" case is covered by
+api/tests/test_events.py; smoke_worker_down.py covers the worker's queue.)
 
 Usage: smoke_order_events.py   (reads RABBITMQ_USER and RABBITMQ_PASSWORD)
 Only the standard library is used.
@@ -65,16 +67,6 @@ def exchange_exists():
 
 
 def main():
-    order = call(
-        "POST",
-        f"{WEB}/api/orders",
-        {
-            "customer": {"name": "CI", "phone": "+55 11 90000-0000", "address": "Rua do Teste, 1"},
-            "items": [{"pizza_id": 1, "quantity": 1}],
-        },
-    )
-    print(f"Created order {order['id']} (no queue bound yet)")
-
     # The relay declares the exchange when it connects.
     wait_for("the API to declare the exchange", exchange_exists)
     # Durable: RabbitMQ 4.x refuses transient non-exclusive queues
@@ -83,13 +75,21 @@ def main():
     management("POST", f"/bindings/%2F/e/{EXCHANGE}/q/{QUEUE}", {"routing_key": "order.#"})
     print(f"Bound queue {QUEUE} to {EXCHANGE} with order.#")
 
+    order = call(
+        "POST",
+        f"{WEB}/api/orders",
+        {
+            "customer": {"name": "CI", "phone": "+55 11 90000-0000", "address": "Rua do Teste, 1"},
+            "items": [{"pizza_id": 1, "quantity": 1}],
+        },
+    )
+    print(f"Created order {order['id']}")
     call("PATCH", f"{WEB}/api/orders/{order['id']}/status", {"status": "preparing"})
 
     received = []
 
     def two_messages():
-        # Events of orders created earlier (e.g. by the previous CI step) were
-        # also waiting in the outbox and arrive first: keep only this order's.
+        # Keep only this order's events (other steps may create orders too).
         for message in management(
             "POST",
             f"/queues/%2F/{QUEUE}/get",

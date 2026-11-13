@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# The ``app`` package is imported from the worker/ directory.
+pythonpath = ["."]
+testpaths = ["tests"]
+# Any warning fails the tests, as in api/ (see api/pyproject.toml).
+filterwarnings = ["error"]

@@ -19,3 +19,4 @@ An accepted ADR is not edited. If the decision changes, write a new ADR and mark
 | [0002](0002-sqlalchemy-and-schema-creation.md) | SQLAlchemy ORM and schema creation on startup | Accepted |
 | [0003](0003-one-domain-caddy-in-front.md) | One domain for the site and the API, with Caddy in front | Accepted |
 | [0004](0004-order-events-outbox-rabbitmq.md) | Order events through a transactional outbox and RabbitMQ | Accepted |
+| [0005](0005-notification-worker.md) | The notification worker: one queue, retries, dead letters | Accepted |
