@@ -32,6 +32,8 @@ curl -X POST http://localhost:8000/orders \
   }'
 ```
 
+**Always send `Content-Type: application/json`** with a JSON body (`POST` and `PATCH`). Without it the API does not read the body as JSON and answers `422 Input should be a valid dictionary or object`. A browser `fetch()` with `body: JSON.stringify(...)` and no header sends `text/plain`, so the header must be set explicitly.
+
 Prices come from the `pizzas` table, never from the request, and are stored in **cents** (`price_cents`, `total_cents`) to avoid floating-point rounding. Each order item keeps a snapshot of the price at the time of the order.
 
 ### Order status
@@ -43,6 +45,21 @@ received ──► preparing ──► out_for_delivery ──► delivered
 ```
 
 Skipping a step returns `409 Conflict`. Repeating the current status is a no-op.
+
+### Calling the API from a browser (CORS)
+
+A browser only lets a page call an API on **another origin** (another domain, or another port) if the API says that origin is allowed. When the page and the API share an origin, nothing is needed. Otherwise, list the allowed origins in **`CORS_ORIGINS`**, comma-separated:
+
+```bash
+CORS_ORIGINS=https://www.yourdomain.com,http://localhost:8080
+```
+
+- Each entry is `scheme://host[:port]`, with **no path and no trailing slash** (`https://www.yourdomain.com/` never matches what the browser sends, so the API refuses to start with it).
+- `*` is refused: the API stores customers' names, phones and addresses, so only the project's own sites may call it.
+- Unset or empty means no browser on another domain can call the API. `curl`, scripts and other servers are not affected: CORS is enforced by browsers only.
+- Allowed methods: `GET`, `POST`, `PATCH`. Allowed request header: `Content-Type`. No cookies.
+
+For example, to serve the site with `python3 -m http.server 8080` while the API runs on port 8000, start the API with `CORS_ORIGINS=http://localhost:8080`.
 
 ## Running
 

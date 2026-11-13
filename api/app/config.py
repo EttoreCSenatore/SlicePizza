@@ -1,6 +1,7 @@
 """Application settings, read from environment variables."""
 
 import os
+from urllib.parse import urlsplit
 
 from sqlalchemy.engine import URL, make_url
 
@@ -68,11 +69,62 @@ def database_url_from_env() -> URL:
     )
 
 
+def cors_origins_from_env() -> list[str]:
+    """Read the origins allowed to call the API from a browser.
+
+    ``CORS_ORIGINS`` is a comma-separated list of origins, e.g.
+    ``https://www.example.com,http://localhost:8080``. Unset or empty means no
+    cross-origin browser access at all; curl and server-to-server calls are
+    not affected, since CORS is enforced only by browsers.
+
+    ``*`` is refused: the API takes customers' names, phones and addresses,
+    so only the project's own frontends may call it. An origin is a scheme,
+    a host and an optional port; a path (even a trailing ``/``) would never
+    match the browser's ``Origin`` header, so it is rejected instead of
+    silently failing.
+    """
+    raw = os.getenv("CORS_ORIGINS") or ""
+    origins: list[str] = []
+    for entry in raw.split(","):
+        origin = entry.strip()
+        if not origin:
+            continue
+        if origin == "*":
+            raise ConfigError(
+                "CORS_ORIGINS must list the frontend's origins; '*' is not allowed."
+            )
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme not in ("http", "https")
+            or not parsed.hostname
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or parsed.username
+            or parsed.password
+        ):
+            raise ConfigError(
+                f"CORS_ORIGINS entry {origin!r} is not an origin. Use "
+                "scheme://host[:port] with no path or trailing slash, e.g. "
+                "https://www.example.com."
+            )
+        try:
+            parsed.port  # noqa: B018 - raises ValueError on a bad port
+        except ValueError:
+            raise ConfigError(f"CORS_ORIGINS entry {origin!r} has an invalid port.") from None
+        # Browsers send the scheme and host in lowercase.
+        origin = origin.lower()
+        if origin not in origins:
+            origins.append(origin)
+    return origins
+
+
 class Settings:
     """Runtime configuration, resolved once at import time."""
 
     def __init__(self) -> None:
         self.database_url: URL = database_url_from_env()
+        self.cors_origins: list[str] = cors_origins_from_env()
 
 
 settings = Settings()

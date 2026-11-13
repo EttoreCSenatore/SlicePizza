@@ -24,6 +24,8 @@ PR merged into main ──► GitHub Actions builds api/ ──► ghcr.io/senat
 
 `api/Dockerfile` meets all four: Uvicorn on `0.0.0.0:8000`, user `app` (uid 10001), settings from the environment.
 
+`CORS_ORIGINS` (see [api/README.md](../api/README.md#calling-the-api-from-a-browser-cors)) is only needed if a site on another domain calls the API from the browser.
+
 ## Database
 
 The API **refuses to start without a database** (see `api/app/config.py`): there is no silent fallback to a local file, because that would lose orders on every redeploy. On the server it uses PostgreSQL, the same way `docker-compose.yml` does locally.

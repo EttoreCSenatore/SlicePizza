@@ -8,11 +8,13 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from .config import settings
 from .database import Base, SessionLocal, engine, get_db, wait_for_database
 from .models import ALLOWED_TRANSITIONS, Order, OrderItem, OrderStatus, Pizza
 from .schemas import OrderCreate, OrderOut, OrderStatusUpdate, PizzaOut
@@ -38,6 +40,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+if settings.cors_origins:
+    # The menu site is served from another domain (a CDN), so browsers ask
+    # first with an OPTIONS preflight before every POST and PATCH that sends
+    # JSON. Only the configured origins get an answer. No cookies are used,
+    # so credentials stay disabled.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST", "PATCH"],
+        allow_headers=["Content-Type"],
+        max_age=600,
+    )
 
 
 @app.exception_handler(RequestValidationError)

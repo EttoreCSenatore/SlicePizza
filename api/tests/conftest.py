@@ -34,6 +34,8 @@ if _test_url.get_backend_name() != "sqlite" and "test" not in (_test_url.databas
 for _name in ("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"):
     os.environ.pop(_name, None)
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+# The origin the CORS tests treat as "the frontend" (see test_cors.py).
+os.environ["CORS_ORIGINS"] = "https://menu.slicepizza.test"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
