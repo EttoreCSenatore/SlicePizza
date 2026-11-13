@@ -1,13 +1,14 @@
 """Application settings, read from environment variables."""
 
 import os
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sqlalchemy.engine import URL, make_url
 
 
 class ConfigError(RuntimeError):
-    """Raised when the database settings are missing or incomplete."""
+    """Raised when a setting is missing, incomplete or invalid."""
 
 
 def _require(name: str) -> str:
@@ -154,12 +155,59 @@ def cors_origins_from_env() -> list[str]:
     return origins
 
 
+@dataclass(frozen=True)
+class RabbitMQSettings:
+    host: str
+    port: int
+    user: str
+    password: str
+    vhost: str
+
+
+def rabbitmq_from_env() -> RabbitMQSettings | None:
+    """Where the API publishes order events, or None to keep them in the outbox.
+
+    ``RABBITMQ_HOST`` turns publishing on; ``RABBITMQ_USER`` and
+    ``RABBITMQ_PASSWORD`` are then required, ``RABBITMQ_PORT`` (5672) and
+    ``RABBITMQ_VHOST`` (``/``) are optional. As with Postgres, the parts are
+    separate variables, so the password needs no URL-encoding.
+
+    Without ``RABBITMQ_HOST`` the API still records every event in the
+    ``order_events`` table (the outbox); they are published once a broker is
+    configured. The tests run this way.
+    """
+    host = os.getenv("RABBITMQ_HOST")
+    if not host:
+        return None
+
+    def required(name: str) -> str:
+        value = os.getenv(name)
+        if not value:
+            raise ConfigError(f"{name} is required when RABBITMQ_HOST is set.")
+        return value
+
+    raw_port = os.getenv("RABBITMQ_PORT") or "5672"
+    try:
+        port = int(raw_port)
+    except ValueError:
+        raise ConfigError(f"RABBITMQ_PORT must be a number, got {raw_port!r}.") from None
+
+    return RabbitMQSettings(
+        host=host,
+        port=port,
+        user=required("RABBITMQ_USER"),
+        password=required("RABBITMQ_PASSWORD"),
+        vhost=os.getenv("RABBITMQ_VHOST") or "/",
+    )
+
+
 class Settings:
     """Runtime configuration, resolved once at import time."""
 
     def __init__(self) -> None:
         self.database_url: URL = database_url_from_env()
         self.cors_origins: list[str] = cors_origins_from_env()
+        self.rabbitmq: RabbitMQSettings | None = rabbitmq_from_env()
 
 
 settings = Settings()

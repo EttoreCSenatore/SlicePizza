@@ -273,9 +273,10 @@ def test_status_update_uses_a_single_update_statement(client):
     finally:
         event.remove(engine, "before_cursor_execute", record)
 
-    # Load (order, items, pizzas) + one UPDATE. Nothing after the UPDATE.
+    # Load (order, items, pizzas), one UPDATE, then the INSERT of its event
+    # (the outbox, same transaction). No SELECT after the UPDATE.
     assert statements.count("UPDATE") == 1
-    assert statements[-1] == "UPDATE"
+    assert statements[statements.index("UPDATE") + 1 :] == ["INSERT"]
 
 
 # Real concurrency needs real row locks and separate connections: Postgres only.

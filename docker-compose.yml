@@ -25,6 +25,35 @@ services:
       timeout: 5s
       retries: 10
 
+  # Message broker for order events (Phase 3, ADR 0004). The API publishes to
+  # it; consumers (the worker, next) read from their own queues.
+  rabbitmq:
+    image: rabbitmq:4.3.4-management-alpine
+    restart: unless-stopped
+    # RabbitMQ keeps its data under its node name, rabbit@<hostname>. Compose
+    # would give every new container a random hostname, so after a recreate
+    # the queues in the volume would belong to another node and seem gone.
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    volumes:
+      # Durable queues and persistent messages survive `docker compose down`.
+      - rabbitmqdata:/var/lib/rabbitmq
+    # Loopback only, like Postgres: the management UI on
+    # http://localhost:15672 and AMQP on 5672 (for a worker run by hand).
+    ports:
+      - "127.0.0.1:15672:15672"
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672"
+    healthcheck:
+      # The official image has no healthcheck; this one waits until the node
+      # accepts AMQP and HTTP connections, not just until it is running.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
   api:
     build: ./api
     restart: unless-stopped
@@ -47,6 +76,11 @@ services:
       # network) addresses: if port 8000 were ever exposed, a request from the
       # internet could not fake its IP this way.
       UVICORN_FORWARDED_ALLOW_IPS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      # Order events go to RabbitMQ (ADR 0004). The API does not wait for it:
+      # without RabbitMQ it keeps working and the events wait in its database.
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
     # Same restrictions as on the server (docs/DEPLOY.md).
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -95,3 +129,4 @@ services:
 
 volumes:
   pgdata:
+  rabbitmqdata:

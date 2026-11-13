@@ -80,7 +80,7 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Images in docker-compose.yml (postgres).
+  # Images in docker-compose.yml (postgres, rabbitmq).
   - package-ecosystem: docker-compose
     directory: /
     schedule:
@@ -96,6 +96,10 @@ updates:
       # A new Postgres major version needs a dump and restore of the data, and the server
       # runs the same version as docker-compose.yml. That upgrade is planned by hand.
       - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      # A RabbitMQ major version needs its feature flags enabled first and may
+      # drop old queue types: also an upgrade to plan by hand.
+      - dependency-name: rabbitmq
         update-types: ["version-update:semver-major"]
 
   # Actions used in .github/workflows/.

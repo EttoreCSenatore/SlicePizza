@@ -26,8 +26,10 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`) |
 | `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below |
 
-Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy (also from private addresses only). That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
+| `rabbitmq` | `rabbitmq:4.3.4-management-alpine` | No: only `api` (and the worker, next) reach it | See [RabbitMQ](#rabbitmq) |
+
+Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy (also from private addresses only). That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
 
 Both images meet the server's rules:
 
@@ -38,7 +40,7 @@ Both images meet the server's rules:
 | Fit in 512 MB of RAM and 1 CPU | Those are each container's limits | Caddy uses a few tens of MB |
 | Read settings from environment variables | Variables and secrets are set on the server, never in Git | |
 
-`docker-compose.yml` runs the same three containers with the same restrictions, so `docker compose up` on your machine behaves like the server.
+`docker-compose.yml` runs the same containers with the same restrictions, so `docker compose up` on your machine behaves like the server.
 
 `CORS_ORIGINS` (see [api/README.md](../api/README.md#calling-the-api-from-a-browser-cors)) is not needed: the site and the API share one origin. Set it only if a site on another domain must call the API from the browser.
 
@@ -58,6 +60,26 @@ The API **refuses to start without a database** (see `api/app/config.py`): there
 On first boot the API waits for Postgres to accept connections, creates the tables and seeds the menu (see [ADR 0002](adr/0002-sqlalchemy-and-schema-creation.md)). An empty database is all it needs.
 
 `create_all()` does not alter existing tables. Before a change to `api/app/models.py` reaches the server, the project needs migrations (Alembic, planned in ADR 0002); until then, a schema change on the server means adjusting the tables by hand.
+
+## RabbitMQ
+
+Order events go from the API to RabbitMQ through the outbox ([ADR 0004](adr/0004-order-events-outbox-rabbitmq.md)). The API does not depend on it: if RabbitMQ is missing or down, orders still work and their events wait in the `order_events` table.
+
+| Item | On the server |
+|---|---|
+| Image | `rabbitmq:4.3.4-management-alpine`, the same as `docker-compose.yml` |
+| Hostname | **Fixed** (e.g. `rabbitmq`). RabbitMQ stores its data under `rabbit@<hostname>`: with a new random hostname after a redeploy, the queues in the volume would seem gone |
+| Network | The project's network only. **No published port** and no domain: the management UI (15672) is reached through an SSH tunnel when needed |
+| Data | A named volume on `/var/lib/rabbitmq`, so queued messages survive restarts. Never replaced by the automatic update |
+| User | `RABBITMQ_DEFAULT_USER` / `RABBITMQ_DEFAULT_PASS` on the RabbitMQ container: a strong, random password, stored on the server. Created on first boot only |
+| API variables | `RABBITMQ_HOST` (the service name), `RABBITMQ_USER`, `RABBITMQ_PASSWORD`; optionally `RABBITMQ_PORT` (5672) and `RABBITMQ_VHOST` (`/`) |
+
+**Until the worker is deployed** (the next Phase 3 step), events have no queue to go to. Either way nothing is lost; the difference is only in the logs:
+
+- With `RABBITMQ_HOST` set, the API logs a warning on every retry (every 30 s at most) that no queue is bound.
+- Without it, the API logs one line at startup and the events simply wait.
+
+So it is fine to add RabbitMQ and the worker to the server together.
 
 ## Checking the deploy
 

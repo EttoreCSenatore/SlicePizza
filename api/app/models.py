@@ -4,7 +4,18 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum as SAEnum, ForeignKey, String, func
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -106,3 +117,49 @@ class OrderItem(Base):
     @property
     def pizza_name(self) -> str:
         return self.pizza.name
+
+
+class OrderEvent(Base):
+    """An event about an order, waiting to be (or already) sent to RabbitMQ.
+
+    This table is the transactional outbox (ADR 0004): the API inserts the
+    event in the same transaction that changes the order, so either both are
+    saved or neither is. A background relay (app/outbox.py) publishes the rows
+    that have no ``published_at`` yet, in ``id`` order, and then fills it in.
+    If RabbitMQ is down, the rows wait here.
+    """
+
+    __tablename__ = "order_events"
+
+    # BIGINT on Postgres; SQLite only auto-increments an INTEGER primary key.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True
+    )
+    # Sent as the AMQP message_id: consumers use it to drop duplicates, since
+    # a message can be delivered more than once (at-least-once delivery).
+    event_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4())
+    )
+    order_id: Mapped[str] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Also the RabbitMQ routing key: order.created, order.status_changed.
+    type: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        # The relay only ever looks for unpublished rows: keep that index
+        # small by leaving the published ones out of it.
+        Index(
+            "ix_order_events_unpublished",
+            "id",
+            postgresql_where=text("published_at IS NULL"),
+            sqlite_where=text("published_at IS NULL"),
+        ),
+    )
