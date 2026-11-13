@@ -152,11 +152,11 @@ The site is served at http://localhost:3000/. The published version is at https:
 | 1 | "I want to see it running on your computer" | ✅ Done |
 | 2 | "I want the site live on my own domain" | 🚧 In progress |
 | 3 | "Customers want to know when their pizza is on the way" | 🚧 In progress |
-| 4 | "Every time you change something, something breaks" | ⏳ |
-| 5 | "The site went down Friday night and nobody noticed" | ⏳ |
-| 6 | "The server died and we lost the orders" | ⏳ |
-| 7 | "We're running a R$20 pizza promo on Friday" | ⏳ |
-| 8 | "I heard hackers attack pizzerias" | ⏳ |
+| 4 | "Every time you change something, something breaks" | ⏳ Not started |
+| 5 | "The site went down Friday night and nobody noticed" | ⏳ Not started |
+| 6 | "The server died and we lost the orders" | ⏳ Not started |
+| 7 | "We're running a R$20 pizza promo on Friday" | ⏳ Not started |
+| 8 | "I heard hackers attack pizzerias" | ⏳ Not started |
 
 Tasks and definition of done for each phase in [docs/ROADMAP.md](docs/ROADMAP.md).
 
