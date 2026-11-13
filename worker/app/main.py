@@ -3,7 +3,10 @@
 import logging
 import signal
 import sys
+import threading
 
+from .api_client import ApiClient
+from .bot import BotPoller
 from .config import ConfigError, load_settings
 from .consumer import Consumer, Notifier
 from .telegram import LogSender, TelegramSender
@@ -34,7 +37,19 @@ def main() -> int:
         # Show the pizzeria's messages in the log even without a chat id.
         pizzeria_chat = pizzeria_chat or "<pizzeria chat>"
 
-    consumer = Consumer(settings, Notifier(sender, pizzeria_chat))
+    api = ApiClient(settings.api_url, settings.internal_api_token) if settings.internal_api_token else None
+    if api is None:
+        logger.warning(
+            "INTERNAL_API_TOKEN is not set: customers cannot follow orders on Telegram "
+            "(the bot answers /start with \"try again later\")."
+        )
+
+    consumer = Consumer(settings, Notifier(sender, pizzeria_chat, api=api))
+
+    # The bot's commands (/start, /stop) need a real bot to listen to.
+    if isinstance(sender, TelegramSender):
+        poller = BotPoller(sender, api, consumer.stop_event)
+        threading.Thread(target=poller.run, name="bot", daemon=True).start()
 
     def stop(signum, _frame):
         logger.info("Received %s, stopping after the current message", signal.Signals(signum).name)

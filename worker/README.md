@@ -1,17 +1,19 @@
 # Notification worker
 
-> 🚧 **Phase 3.** The pizzeria's Telegram chat gets a message for every new order and every status change. Next: customers who ask for it get their own order's updates. See the [ROADMAP](../docs/ROADMAP.md#phase-3-customers-want-to-know-when-their-pizza-is-on-the-way).
+> 🚧 **Phase 3.** The pizzeria's Telegram chat gets a message for every new order and every status change, and customers who follow their order get its updates. Next: the "Follow on Telegram" button on the order page. See the [ROADMAP](../docs/ROADMAP.md#phase-3-customers-want-to-know-when-their-pizza-is-on-the-way).
 
-A Python service that reads order events from its RabbitMQ queue and sends Telegram messages. It never talks to the API or the database: everything it needs is in the event.
+A Python service that reads order events from its RabbitMQ queue and sends Telegram messages, and that runs the bot customers talk to. It never touches the database: everything it needs to send is in the event, and the API links customers' chats to their orders ([ADR 0006](../docs/adr/0006-customer-telegram-opt-in.md)).
 
 Why a separate service? If Telegram is slow or down, the API keeps answering, and the messages wait in the queue until the worker can send them. How it handles each kind of failure: [ADR 0005](../docs/adr/0005-notification-worker.md).
 
 ```
-slicepizza.events ──order.#──► notifications ──► worker ──► Telegram (pizzeria chat)
+slicepizza.events ──order.#──► notifications ──► worker ──► Telegram (pizzeria chat + customers)
                                      │
                        unreadable / refused / crashed 20×
                                      ▼
                          notifications.dead-letter
+
+customer ──/start <order id>──► bot (worker) ──PUT /internal/...──► API
 ```
 
 ## What the pizzeria chat receives
@@ -29,6 +31,32 @@ Order 9b2e1c4a (Maria): Received → Being prepared
 ```
 
 `9b2e1c4a` is the start of the order id, as the menu site shows it.
+
+## What customers receive
+
+A customer taps "Follow on Telegram" on their order page (`https://t.me/<bot>?start=<order id>`) and presses **Start**:
+
+```
+🍕 You're following order 9b2e1c4a from Zé's Pizzeria.
+Your order 9b2e1c4a is being prepared. 🍕
+I'll message you here when it changes. Send /stop to stop.
+```
+
+Then, on each change:
+
+```
+Zé's Pizzeria
+Your order 9b2e1c4a is on the way! 🛵
+```
+
+| They send | The bot |
+|---|---|
+| `/start <order id>` | Follows the order (through the API) and answers with its status |
+| `/start` | Says hello and how to follow an order |
+| `/stop` | Stops every order's updates to this chat |
+| Anything else (private chat) | Explains how to use it. In groups, only commands are answered |
+
+A customer who blocks the bot is skipped and unlinked; the pizzeria's chat and the other customers are not affected.
 
 ## Running
 
@@ -68,6 +96,10 @@ docker compose start worker
 
 If the token or the chat id is wrong, the worker logs an **error** every minute saying which setting to check, and keeps the message until it can send it.
 
+5. For customers to follow their orders, set the same `INTERNAL_API_TOKEN` for the API and the worker (`openssl rand -hex 32`) in `.env`, and restart both: `docker compose up -d api worker`. Then open `https://t.me/<your bot's username>?start=<an order id>` on your phone.
+
+Only **one** worker may run per bot: it reads the bot's messages by long polling, and Telegram refuses a second reader (409 Conflict).
+
 ## Settings
 
 | Variable | Purpose | Default |
@@ -77,6 +109,8 @@ If the token or the chat id is wrong, the worker logs an **error** every minute 
 | `TELEGRAM_BOT_TOKEN` | The bot. Empty: log the messages instead of sending them | empty |
 | `TELEGRAM_PIZZERIA_CHAT_ID` | The pizzeria's chat: a numeric id (`-100…`) or a public `@channel`. Empty: no pizzeria messages | empty |
 | `TELEGRAM_API_URL` | The Bot API's address (for tests) | `https://api.telegram.org` |
+| `API_URL` | The API, on the project network | `http://api:8000` |
+| `INTERNAL_API_TOKEN` | The secret for the API's `/internal` routes, **the same as the API's**. Empty: customers cannot follow orders | empty |
 | `WORKER_HEARTBEAT_FILE` | The file the healthcheck looks at | `/tmp/worker-alive` |
 
 ## Tests
@@ -99,6 +133,8 @@ RABBITMQ_TEST_HOST=localhost RABBITMQ_TEST_USER=$RABBITMQ_USER RABBITMQ_TEST_PAS
 
 CI runs them against `rabbitmq:4.4.0-management-alpine`, the same version as `docker-compose.yml`.
 
+CI also runs the whole opt-in end to end: the real API and worker against a **fake Telegram Bot API** ([`.github/scripts/fake_telegram.py`](../.github/scripts/fake_telegram.py)) that injects `/start` and `/stop` and records every message ([`e2e_telegram_optin.py`](../.github/scripts/e2e_telegram_optin.py)).
+
 ## Dependencies
 
 The same setup as the API ([api/README.md](../api/README.md#dependencies)): edit `requirements.in` / `requirements-dev.in`, then regenerate the lock files with the image's Python:
@@ -119,8 +155,10 @@ worker/
 │   ├── main.py       # entry point: settings, signals, run
 │   ├── config.py     # settings from environment variables
 │   ├── consumer.py   # RabbitMQ: queues, one message at a time, retries
+│   ├── bot.py        # the bot's commands: /start, /stop
+│   ├── api_client.py # the API's /internal routes
 │   ├── messages.py   # reads events, writes the message texts
-│   └── telegram.py   # sends to Telegram (or to the log)
+│   └── telegram.py   # sends to Telegram (or to the log), reads the bot's messages
 ├── tests/
 ├── scripts/compile-requirements.sh
 ├── Dockerfile

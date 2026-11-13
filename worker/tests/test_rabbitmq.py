@@ -41,6 +41,8 @@ def settings(tmp_path):
         telegram_bot_token="",
         telegram_pizzeria_chat_id="",
         telegram_api_url="",
+        api_url="",
+        internal_api_token="",
         heartbeat_file=str(tmp_path / "alive"),
     )
 

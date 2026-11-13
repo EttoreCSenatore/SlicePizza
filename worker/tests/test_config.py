@@ -12,6 +12,8 @@ NAMES = (
     "TELEGRAM_PIZZERIA_CHAT_ID",
     "TELEGRAM_API_URL",
     "WORKER_HEARTBEAT_FILE",
+    "API_URL",
+    "INTERNAL_API_TOKEN",
 )
 
 
@@ -32,6 +34,8 @@ def test_defaults(env):
     assert s.telegram_bot_token == ""
     assert s.telegram_pizzeria_chat_id == ""
     assert s.telegram_api_url == "https://api.telegram.org"
+    assert s.api_url == "http://api:8000"
+    assert s.internal_api_token == ""
 
 
 @pytest.mark.parametrize("missing", ["RABBITMQ_HOST", "RABBITMQ_USER", "RABBITMQ_PASSWORD"])
@@ -59,6 +63,7 @@ def test_invalid_chat_ids_are_refused(env, chat_id):
 
 def test_repr_hides_the_secrets(env):
     env.setenv("TELEGRAM_BOT_TOKEN", "123:SECRET")
+    env.setenv("INTERNAL_API_TOKEN", "SECRET-internal-0123456789abcdef0123")
 
     text = repr(load_settings())
 

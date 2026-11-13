@@ -34,6 +34,8 @@ class OrderEvent:
     customer_name: str
     total_cents: int
     items: tuple[tuple[str, int], ...]
+    # Customers' Telegram chats that follow this order (ADR 0006).
+    telegram_chat_ids: tuple[int, ...] = ()
 
     @property
     def short_id(self) -> str:
@@ -67,9 +69,22 @@ def parse_event(body: dict) -> OrderEvent | None:
             customer_name=str(order["customer_name"]),
             total_cents=int(order["total_cents"]),
             items=tuple((str(i["pizza_name"]), int(i["quantity"])) for i in order["items"]),
+            telegram_chat_ids=_chat_ids(body.get("notify")),
         )
     except (KeyError, TypeError, ValueError) as error:
         raise InvalidEvent(f"missing or invalid field: {error}") from None
+
+
+def _chat_ids(notify) -> tuple[int, ...]:
+    """Chats from ``notify.telegram_chat_ids``; events without it have none."""
+    if notify is None:
+        return ()
+    if not isinstance(notify, dict):
+        raise ValueError("notify must be an object")
+    ids = notify.get("telegram_chat_ids", [])
+    if not isinstance(ids, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+        raise ValueError("notify.telegram_chat_ids must be a list of integers")
+    return tuple(dict.fromkeys(ids))  # without duplicates, in order
 
 
 def format_brl(cents: int) -> str:
@@ -93,3 +108,54 @@ def pizzeria_text(event: OrderEvent) -> str:
         f"Order {event.short_id} ({event.customer_name}): "
         f"{status_label(event.previous_status)} → {status_label(event.status)}"
     )
+
+
+# --- Customers ---------------------------------------------------------------
+
+CUSTOMER_STATUS_TEXT = {
+    "received": "Your order {id} was received.",
+    "preparing": "Your order {id} is being prepared. 🍕",
+    "out_for_delivery": "Your order {id} is on the way! 🛵",
+    "delivered": "Your order {id} was delivered. Enjoy! 😋",
+    "cancelled": "Your order {id} was cancelled. If you didn't expect this, please call the pizzeria.",
+}
+FINISHED = ("delivered", "cancelled")
+
+
+def customer_status_text(short_id: str, status: str) -> str:
+    template = CUSTOMER_STATUS_TEXT.get(status, "Your order {id}: " + status_label(status) + ".")
+    return template.format(id=short_id)
+
+
+def customer_text(event: OrderEvent) -> str:
+    """The message to a customer who follows the order."""
+    return "Zé's Pizzeria\n" + customer_status_text(event.short_id, event.status)
+
+
+# --- Replies to the bot's commands (app/bot.py) ----------------------------------------
+
+def reply_following(short_id: str, status: str) -> str:
+    now = customer_status_text(short_id, status)
+    if status in FINISHED:
+        return f"{now}\nThere will be no more updates for this order."
+    return (
+        f"🍕 You're following order {short_id} from Zé's Pizzeria.\n"
+        f"{now}\n"
+        "I'll message you here when it changes. Send /stop to stop."
+    )
+
+
+REPLY_WELCOME = (
+    "Hi! I send updates about orders from Zé's Pizzeria.\n"
+    "To follow your order, tap \"Follow on Telegram\" on your order's page."
+)
+REPLY_UNKNOWN_ORDER = (
+    "I couldn't find that order. Open the link from your order's page again."
+)
+REPLY_TOO_MANY = "Too many chats already follow this order."
+REPLY_UNAVAILABLE = "Something went wrong on our side. Please try again in a minute."
+REPLY_STOPPED = "Done: you won't get any more order updates here."
+REPLY_HELP = (
+    "To follow an order, tap \"Follow on Telegram\" on your order's page.\n"
+    "Send /stop to stop getting updates."
+)
