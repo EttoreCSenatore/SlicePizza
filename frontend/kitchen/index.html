@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kitchen | Zé's Pizzeria</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1E5B3F">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Young+Serif&display=swap">
+  <link rel="stylesheet" href="kitchen.css">
+  <script src="kitchen.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <h1 class="bar-title">Zé's Pizzeria kitchen</h1>
+    <p id="updated" class="bar-status" aria-live="off">Loading orders…</p>
+  </header>
+
+  <p id="problem" class="problem" role="alert" hidden></p>
+  <p id="notice" class="notice" role="status" hidden></p>
+  <!-- Read out by screen readers when tickets arrive or leave. -->
+  <p id="announce" class="visually-hidden" aria-live="polite"></p>
+
+  <main id="board" class="board">
+    <section class="rail" data-status="received" aria-labelledby="rail-received">
+      <h2 class="rail-title" id="rail-received">New <span class="rail-count" data-count></span></h2>
+      <ol class="tickets" data-tickets></ol>
+      <p class="rail-empty" data-empty hidden>No new orders.</p>
+    </section>
+    <section class="rail" data-status="preparing" aria-labelledby="rail-preparing">
+      <h2 class="rail-title" id="rail-preparing">In the oven <span class="rail-count" data-count></span></h2>
+      <ol class="tickets" data-tickets></ol>
+      <p class="rail-empty" data-empty hidden>Nothing in the oven.</p>
+    </section>
+    <section class="rail" data-status="out_for_delivery" aria-labelledby="rail-out_for_delivery">
+      <h2 class="rail-title" id="rail-out_for_delivery">On the way <span class="rail-count" data-count></span></h2>
+      <ol class="tickets" data-tickets></ol>
+      <p class="rail-empty" data-empty hidden>No orders on the way.</p>
+    </section>
+  </main>
+</body>
+</html>

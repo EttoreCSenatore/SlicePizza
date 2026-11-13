@@ -1,4 +1,5 @@
-# The "web" image: Caddy with the menu site inside, in front of the API.
+# The "web" image: Caddy with the menu site and the kitchen board inside, in
+# front of the API.
 # Build it from the repository root (it needs frontend/ and infra/caddy/):
 #
 #   docker build -f infra/caddy/Dockerfile -t slicepizza-web .
@@ -17,6 +18,8 @@ RUN setcap -r /usr/bin/caddy
 
 COPY infra/caddy/Caddyfile /etc/caddy/Caddyfile
 COPY frontend/menu/ /srv/
+# The kitchen board, served at /kitchen/ behind the kitchen login (ADR 0007).
+COPY frontend/kitchen/ /srv-kitchen/
 
 # Caddy writes nothing to disk with this Caddyfile, but point its folders to a
 # place an unprivileged user can write, just in case.

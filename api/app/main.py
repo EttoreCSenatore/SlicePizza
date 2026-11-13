@@ -5,7 +5,7 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +14,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from .auth import require_kitchen
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db, wait_for_database
 from .events import ORDER_CREATED, ORDER_STATUS_CHANGED, record_event
@@ -289,19 +290,57 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db)) -> Order:
     return order
 
 
+# What the kitchen board shows by default: orders that still need someone.
+OPEN_STATUSES = (OrderStatus.RECEIVED, OrderStatus.PREPARING, OrderStatus.OUT_FOR_DELIVERY)
+MAX_LISTED_ORDERS = 500
+
+
+@app.get(
+    "/orders",
+    response_model=list[OrderOut],
+    dependencies=[Depends(require_kitchen)],
+    responses={401: {"description": "Kitchen only"}},
+)
+def list_orders(
+    status_filter: list[OrderStatus] | None = Query(
+        default=None,
+        alias="status",
+        description="Only these statuses (repeat the parameter for several). "
+        "Default: the open ones (received, preparing, out_for_delivery).",
+    ),
+    limit: int = Query(default=200, ge=1, le=MAX_LISTED_ORDERS),
+    db: Session = Depends(get_db),
+) -> list[Order]:
+    """List orders for the kitchen, oldest first. Kitchen only (ADR 0007)."""
+    statuses = status_filter or OPEN_STATUSES
+    query = (
+        select(Order)
+        .where(Order.status.in_(statuses))
+        .order_by(Order.created_at, Order.id)
+        .limit(limit)
+        .options(selectinload(Order.items).selectinload(OrderItem.pizza))
+    )
+    return list(db.scalars(query))
+
+
 @app.get("/orders/{order_id}", response_model=OrderOut)
 def get_order(order_id: uuid.UUID, db: Session = Depends(get_db)) -> Order:
     """Get a single order and its items."""
     return _load_order(db, order_id)
 
 
-@app.patch("/orders/{order_id}/status", response_model=OrderOut)
+@app.patch(
+    "/orders/{order_id}/status",
+    response_model=OrderOut,
+    dependencies=[Depends(require_kitchen)],
+    responses={401: {"description": "Kitchen only"}},
+)
 def update_order_status(
     order_id: uuid.UUID,
     payload: OrderStatusUpdate,
     db: Session = Depends(get_db),
 ) -> Order:
-    """Move an order to the next status.
+    """Move an order to the next status. Kitchen only (ADR 0007).
 
     Allowed path: received -> preparing -> out_for_delivery -> delivered,
     and received -> cancelled. Repeating the current status is a no-op.

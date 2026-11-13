@@ -21,7 +21,7 @@ Customer ──► slicepizza.senatore.tech ─┤
                                                        ▼
                                               Notification worker ──► Telegram
 
-Kitchen ──► Kitchen dashboard (Phase 3, address to be decided) ──► API
+Kitchen ──► slicepizza.senatore.tech/kitchen (login) ──► Caddy ──(kitchen token)──► Orders API
 ```
 
 Details for each component in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -51,7 +51,7 @@ Details for each component in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 SlicePizza/
 ├── api/            # Orders API (FastAPI)               → Phase 1
 ├── worker/         # Notification worker                → Phase 3
-├── frontend/       # Menu website + kitchen dashboard   → Phase 2
+├── frontend/       # Menu website + kitchen board       → Phases 2 and 3
 ├── infra/          # Terraform, Ansible, Kubernetes     → Phases 6 and 7
 ├── docs/           # Documentation, roadmap and ADRs
 ├── docs-site/      # Documentation website (Docusaurus)

@@ -2,14 +2,16 @@
 
 1. Binds a temporary queue to the events exchange (management HTTP API),
    next to the worker's own queue.
-2. Creates an order through the web container and changes its status.
+2. Creates an order through the web container and changes its status
+   through the kitchen route (/kitchen/api, behind the kitchen login).
 3. Expects both events, in order, as persistent JSON messages whose
    message_id is the event_id.
 
 (The "no queue at all: the event waits in the outbox" case is covered by
 api/tests/test_events.py; smoke_worker_down.py covers the worker's queue.)
 
-Usage: smoke_order_events.py   (reads RABBITMQ_USER and RABBITMQ_PASSWORD)
+Usage: smoke_order_events.py   (reads RABBITMQ_USER, RABBITMQ_PASSWORD,
+KITCHEN_USERNAME and KITCHEN_PASSWORD)
 Only the standard library is used.
 """
 
@@ -32,10 +34,17 @@ AUTH = "Basic " + base64.b64encode(
 ).decode()
 
 
-def call(method, url, body=None, auth=False):
+KITCHEN_AUTH = "Basic " + base64.b64encode(
+    f"{os.getenv('KITCHEN_USERNAME') or 'kitchen'}:{os.environ['KITCHEN_PASSWORD']}".encode()
+).decode()
+
+
+def call(method, url, body=None, auth=False, kitchen=False):
     headers = {"Content-Type": "application/json"}
     if auth:
         headers["Authorization"] = AUTH
+    if kitchen:
+        headers["Authorization"] = KITCHEN_AUTH
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(url, data=data, method=method, headers=headers)
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -84,7 +93,7 @@ def main():
         },
     )
     print(f"Created order {order['id']}")
-    call("PATCH", f"{WEB}/api/orders/{order['id']}/status", {"status": "preparing"})
+    call("PATCH", f"{WEB}/kitchen/api/orders/{order['id']}/status", {"status": "preparing"}, kitchen=True)
 
     received = []
 

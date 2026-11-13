@@ -5,7 +5,7 @@ Plain HTML, CSS and JavaScript, with no build step and no framework (the project
 | Page | Folder | Address | For whom | Phase |
 |---|---|---|---|---|
 | Menu website | [`menu/`](menu/) | `https://slicepizza.senatore.tech/` | Customers pick pizzas, place an order and follow its status | 2 |
-| Kitchen dashboard | `kitchen/` | to be decided in Phase 3 | The kitchen sees orders and updates their status | 3 |
+| Kitchen board | [`kitchen/`](kitchen/) | `https://slicepizza.senatore.tech/kitchen/` (with a login) | The kitchen sees the open orders and moves them along | 3 |
 
 ## Menu website
 
@@ -92,3 +92,24 @@ To use an API on another origin (e.g. `"http://localhost:8000"`), three things c
 1. Put its full address in `config.js`.
 2. Allow the page to call it: set `EXTRA_CONNECT_SRC` to that origin (e.g. `http://localhost:8000`) on the `web` container. Caddy adds it to the page's Content-Security-Policy (`connect-src`), which otherwise only allows the site's own origin.
 3. Add this site's origin to the API's `CORS_ORIGINS` (see [api/README.md](../api/README.md#calling-the-api-from-a-browser-cors)).
+
+## Kitchen board
+
+```
+kitchen/
+├── index.html   # three rails: New, In the oven, On the way
+├── kitchen.js   # loads the open orders every 5 seconds, moves them along
+└── kitchen.css
+```
+
+Served at **`/kitchen/`**, behind a login that Caddy asks for ([ADR 0007](../docs/adr/0007-kitchen-login.md)). The page calls `/kitchen/api/orders`, and Caddy forwards those calls to the API with the kitchen token. The page never holds a token: the browser only keeps the login.
+
+What it does:
+
+1. Shows each open order as a ticket on its rail, oldest first. A ticket shows how long the order has waited, what to make, and who it's for. Past 30 minutes, the time turns red.
+2. One button per ticket moves the order to the next status. New orders can also be cancelled, after a confirmation.
+3. Refreshes every 5 seconds and right after every change. New tickets flash once, and screen readers announce them. Tickets are only redrawn when something on them changed, so a tap is never lost to a refresh.
+4. If another screen moved an order first, it says so and shows where the order is now. If the API can't be reached, it keeps showing the last orders it loaded, says since when, and retries further apart each time (up to once a minute).
+
+To try it locally, set `KITCHEN_API_TOKEN` and `KITCHEN_PASSWORD_HASH` in `.env` (see `.env.example`), run `docker compose up -d`, and open <http://localhost:8080/kitchen/>. The user name is `kitchen`. The page is served from the `web` image; `docker-compose.site-dev.yml` mounts `frontend/kitchen/` too, for live edits.
+

@@ -10,7 +10,8 @@ A **Python + FastAPI** API that serves the menu and receives the pizzeria's orde
 | GET | `/menu` | Lists the pizzas |
 | POST | `/orders` | Creates an order |
 | GET | `/orders/{id}` | Gets an order |
-| PATCH | `/orders/{id}/status` | Changes an order's status |
+| GET | `/orders` | **Kitchen only.** Lists orders: the open ones by default, oldest first |
+| PATCH | `/orders/{id}/status` | **Kitchen only.** Changes an order's status |
 
 Behind the `web` container (Caddy, see [ADR 0003](../docs/adr/0003-one-domain-caddy-in-front.md)) every route is also served under **`/api`**: `https://slicepizza.senatore.tech/api/menu`, or `http://localhost:8080/api/menu` with Docker Compose. Caddy removes the prefix, so the API itself keeps the routes above.
 
@@ -37,6 +38,24 @@ curl -X POST http://localhost:8000/orders \
 **Always send `Content-Type: application/json`** with a JSON body (`POST` and `PATCH`). Without it the API does not read the body as JSON and answers `422 Input should be a valid dictionary or object`. A browser `fetch()` with `body: JSON.stringify(...)` and no header sends `text/plain`, so the header must be set explicitly.
 
 Prices come from the `pizzas` table, never from the request, and are stored in **cents** (`price_cents`, `total_cents`) to avoid floating-point rounding. Each order item keeps a snapshot of the price at the time of the order.
+
+### Kitchen routes
+
+Listing orders and changing their status belong to the kitchen board at `/kitchen` ([ADR 0007](../docs/adr/0007-kitchen-login.md)). They need **`Authorization: Bearer <KITCHEN_API_TOKEN>`**:
+
+- Without the header, or with a wrong token: `401`.
+- With no `KITCHEN_API_TOKEN` set on the API: `503`, for everyone.
+
+People never send the token themselves. The kitchen logs in at `/kitchen` (Caddy), and Caddy adds the token to the calls it forwards from `/kitchen/api/*`. To change a status by hand on your machine, send the token from your `.env` straight to the API:
+
+```bash
+curl -X PATCH http://localhost:8000/orders/<id>/status \
+  -H "Authorization: Bearer $KITCHEN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "preparing"}'
+```
+
+`GET /orders` takes `status` (repeat it for several, e.g. `?status=delivered&status=cancelled`) and `limit` (1 to 500, default 200).
 
 ### Order status
 

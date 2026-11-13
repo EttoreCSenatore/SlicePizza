@@ -40,6 +40,8 @@ for _name in ("RABBITMQ_HOST", "RABBITMQ_PORT", "RABBITMQ_USER", "RABBITMQ_PASSW
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 # Turns on the worker's /internal routes (test_internal.py).
 os.environ["INTERNAL_API_TOKEN"] = "test-internal-token-0123456789abcdef"
+# Turns on the kitchen's routes: the order list and status changes (ADR 0007).
+os.environ["KITCHEN_API_TOKEN"] = "test-kitchen-token-0123456789abcdef0"
 # The origin the CORS tests treat as "the frontend" (see test_cors.py).
 os.environ["CORS_ORIGINS"] = "https://menu.slicepizza.test"
 
@@ -63,9 +65,18 @@ def database():
 
 @pytest.fixture
 def client():
+    """The public: no credentials, like the menu site."""
     # Not used as a context manager, so the app lifespan does not run: the
     # fixture above owns the database setup. test_startup.py covers the lifespan.
     return TestClient(app)
+
+
+@pytest.fixture
+def kitchen():
+    """The kitchen dashboard: sends the kitchen token, as Caddy does for it."""
+    return TestClient(
+        app, headers={"Authorization": f"Bearer {os.environ['KITCHEN_API_TOKEN']}"}
+    )
 
 
 @pytest.fixture
