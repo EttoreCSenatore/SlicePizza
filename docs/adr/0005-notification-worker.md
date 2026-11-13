@@ -61,7 +61,7 @@ So a Telegram outage, however long, never dead-letters a message and never reord
 ## Consequences
 
 - **The phase's "done when" is tested in CI.** `.github/scripts/smoke_worker_down.py` stops the worker, places an order, sees the message waiting in `notifications`, starts the worker and sees the message handled.
-- **This relies on RabbitMQ 4.3's counting.** Up to 4.2, every requeue counted toward the delivery limit, so a long outage could dead-letter messages. `docker-compose.yml` and CI pin 4.3.4, and Dependabot leaves RabbitMQ majors alone. Any downgrade must keep this in mind.
+- **This relies on RabbitMQ 4.3's counting.** Up to 4.2, every requeue counted toward the delivery limit, so a long outage could dead-letter messages. `docker-compose.yml` and CI pin the same version (4.3 or later), and Dependabot leaves RabbitMQ majors alone. Any downgrade below 4.3 must keep this in mind.
 - **One stuck message stops the ones behind it** while Telegram is failing. That's on purpose: messages arrive in order, and nothing is lost. Phase 5 should alert when `notifications` has messages older than a few minutes.
 - **Dead-lettered messages need a person.** Look in `notifications.dead-letter` (management UI → Queues), fix the cause, then move them back to `notifications` (the UI's "Move messages" needs the `rabbitmq_shovel` and `rabbitmq_shovel_management` plugins enabled) or delete them.
 - **The dedupe memory is lost on restart**, so a duplicate arriving right after a restart is sent twice. That's acceptable for a notification. Step 2b adds storage (for customers' Telegram chats), and the dedupe can move there if needed.

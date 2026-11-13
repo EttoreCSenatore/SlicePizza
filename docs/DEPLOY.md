@@ -27,7 +27,7 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below. `INTERNAL_API_TOKEN` for the worker's routes ([ADR 0006](adr/0006-customer-telegram-opt-in.md)) |
 
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
-| `rabbitmq` | `rabbitmq:4.3.4-management-alpine` | No: only `api` and `worker` reach it | See [RabbitMQ](#rabbitmq) |
+| `rabbitmq` | `rabbitmq:4.4.0-management-alpine` | No: only `api` and `worker` reach it | See [RabbitMQ](#rabbitmq) |
 | `worker` | `slicepizza-worker` ([`worker/`](../worker/)) | No: no port at all, it only connects out (RabbitMQ, Telegram) | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_PIZZERIA_CHAT_ID`. See [Worker](#worker) |
 
 Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy (also from private addresses only). That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
@@ -68,7 +68,7 @@ Order events go from the API to RabbitMQ through the outbox ([ADR 0004](adr/0004
 
 | Item | On the server |
 |---|---|
-| Image | `rabbitmq:4.3.4-management-alpine`, the same as `docker-compose.yml` |
+| Image | `rabbitmq:4.4.0-management-alpine`, the same as `docker-compose.yml` and CI. Once a node has run 4.4, it cannot go back to 4.3 (new classic-queue store format), so upgrade, don't downgrade |
 | Hostname | **Fixed** (e.g. `rabbitmq`). RabbitMQ stores its data under `rabbit@<hostname>`: with a new random hostname after a redeploy, the queues in the volume would seem gone |
 | Network | The project's network only. **No published port** and no domain: the management UI (15672) is reached through an SSH tunnel when needed |
 | Data | A named volume on `/var/lib/rabbitmq`, so queued messages survive restarts. Never replaced by the automatic update |
