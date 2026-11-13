@@ -11,7 +11,9 @@
 version: 2
 
 updates:
-  # Orders API: api/requirements.txt and api/requirements-dev.txt.
+  # Orders API: the ranges in api/requirements.in and api/requirements-dev.in, and the lock
+  # files generated from them (requirements.txt, requirements-dev.txt). Dependabot recognizes
+  # pip-compile files: its PRs change the pinned version and hashes in the lock files.
   - package-ecosystem: pip
     directory: /api
     schedule:

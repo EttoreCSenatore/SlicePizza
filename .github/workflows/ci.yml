@@ -52,11 +52,34 @@ jobs:
 
       - name: Install dependencies
         working-directory: api
-        run: pip install -r requirements-dev.txt
+        # The same rules as the image: only the versions and hashes in the lock file, wheels only.
+        run: pip install --require-hashes "--only-binary=:all:" -r requirements-dev.txt
 
       - name: Run tests
         working-directory: api
         run: pytest -q
+
+  lock-files:
+    # requirements*.txt are generated from requirements*.in. If someone edits an .in file
+    # and forgets to regenerate, the image would not get the change: fail here instead.
+    name: lock files up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"  # same as the FROM line of api/Dockerfile
+
+      - name: Regenerate the lock files
+        run: api/scripts/compile-requirements.sh
+
+      - name: Compare with the committed ones
+        run: |
+          if ! git diff --exit-code -- api/requirements.txt api/requirements-dev.txt; then
+            echo "::error::api/requirements*.txt are out of date. Run api/scripts/compile-requirements.sh (see api/README.md#dependencies) and commit the result."
+            exit 1
+          fi
 
   docker-smoke:
     name: docker compose smoke test

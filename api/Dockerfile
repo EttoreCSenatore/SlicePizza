@@ -5,8 +5,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# requirements.txt is a lock file: exact versions and sha256 hashes (see
+# "Dependencies" in README.md). --require-hashes refuses any file whose hash is
+# not in it; --only-binary refuses to compile anything from source, because the
+# tools pip would download for that are not hash-checked.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --require-hashes --only-binary=:all: -r requirements.txt
 
 COPY app ./app
 

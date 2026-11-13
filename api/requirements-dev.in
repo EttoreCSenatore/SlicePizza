@@ -1,0 +1,11 @@
+# Test dependencies, on top of the API's. Edit this file, never
+# requirements-dev.txt (see "Dependencies" in README.md).
+#
+# The constraint keeps every package shared with the API on the exact version
+# in requirements.txt, so the tests run against what the image runs.
+-c requirements.txt
+-r requirements.in
+pytest>=9.2.0,<10.0
+httpx>=0.28.1,<1.0
+# For `uvicorn --reload` when running the API by hand.
+watchfiles>=1.3.0,<2.0

@@ -125,7 +125,7 @@ The tests use an in-memory SQLite database, so they do not need Docker or Postgr
 cd api
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install --require-hashes -r requirements-dev.txt
 pytest
 ```
 

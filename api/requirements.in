@@ -1,0 +1,16 @@
+# Direct dependencies of the API, as version ranges. Edit this file, never
+# requirements.txt: that one is generated from it, with exact versions and
+# hashes (see "Dependencies" in README.md).
+fastapi>=0.162.2,<1.0
+sqlalchemy>=2.1.8,<3.0
+psycopg[binary]>=3.3.8,<4.0
+
+# Uvicorn, plus the two parts of uvicorn[standard] the server uses: a faster
+# event loop and HTTP parser, picked up automatically when installed. The rest
+# of [standard] is left out on purpose: PyYAML (YAML log configs), websockets,
+# python-dotenv (--env-file) and watchfiles (--reload, a dev-only need). The
+# API uses none of them, and PyYAML has no wheel for Python 3.15, so it was
+# compiled from source on every image build.
+uvicorn>=0.54.0,<1.0
+uvloop>=0.23.0,<1.0 ; sys_platform != "win32" and platform_python_implementation == "CPython"
+httptools>=0.9.0,<1.0
