@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.15"  # same as the FROM line of api/Dockerfile
+          python-version-file: api/.python-version  # the image's Python (checked below)
           cache: pip
           cache-dependency-path: |
             api/requirements.txt
@@ -52,11 +52,48 @@ jobs:
 
       - name: Install dependencies
         working-directory: api
-        run: pip install -r requirements-dev.txt
+        # The same rules as the image: only the versions and hashes in the lock file, wheels only.
+        run: pip install --require-hashes "--only-binary=:all:" -r requirements-dev.txt
 
       - name: Run tests
         working-directory: api
         run: pytest -q
+
+  lock-files:
+    # requirements*.txt are generated from requirements*.in. If someone edits an .in file
+    # and forgets to regenerate, the image would not get the change: fail here instead.
+    name: lock files up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The lock files are resolved for one Python version, the one in api/.python-version.
+      # Dependabot bumps the FROM line of the Dockerfile on its own, so a new Python in the
+      # image must fail here until .python-version and the lock files follow it.
+      - name: Same Python in the image and in .python-version
+        run: |
+          want="$(cat api/.python-version)"
+          if ! grep -Eq "^FROM python:${want}-slim([@ ]|\$)" api/Dockerfile; then
+            echo "::error file=api/Dockerfile::The FROM line of api/Dockerfile is not python:${want}-slim (api/.python-version). Update .python-version and regenerate the lock files (see api/README.md#dependencies)."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: api/.python-version
+
+      - name: Regenerate the lock files
+        run: api/scripts/compile-requirements.sh
+
+      # Comment lines are ignored (the header and the "# via" notes depend on the pip-tools
+      # version, and Dependabot runs its own); package versions, markers and hashes must match.
+      # The script takes every hash from PyPI again, so a hash edited by hand shows up here.
+      - name: Compare with the committed ones
+        run: |
+          if ! git diff --exit-code --ignore-matching-lines='^[[:space:]]*#' -- 'api/requirements*.txt'; then
+            echo "::error::api/requirements*.txt are out of date. Run api/scripts/compile-requirements.sh (see api/README.md#dependencies) and commit the result."
+            exit 1
+          fi
 
   docker-smoke:
     name: docker compose smoke test
