@@ -18,20 +18,27 @@ Message format, version 1. The routing key is the event type, the body is JSON:
         "customer_name": "Maria",
         "total_cents": 9800,
         "items": [{"pizza_name": "Margherita", "quantity": 2}]
+      },
+      "notify": {
+        "telegram_chat_ids": [123456789]  # chats following this order (ADR 0006)
       }
     }
 
 Phone and delivery address stay out on purpose: the consumers (Telegram
 notifications) do not need them, and every copy of personal data is one more
 place it can leak from.
+
+``notify`` was added after version 1 was published; consumers must accept
+events without it (and ignore fields they do not know).
 """
 
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Order, OrderEvent, OrderStatus
+from .models import Order, OrderEvent, OrderStatus, TelegramSubscription
 
 # Topic exchange that carries every event. Consumers bind their own queues to
 # it, e.g. "order.#" for everything about orders.
@@ -73,6 +80,16 @@ def record_event(
                 {"pizza_name": item.pizza.name, "quantity": item.quantity}
                 for item in order.items
             ],
+        },
+        "notify": {
+            # Who asked to follow this order on Telegram, at this moment.
+            "telegram_chat_ids": list(
+                db.scalars(
+                    select(TelegramSubscription.chat_id)
+                    .where(TelegramSubscription.order_id == order.id)
+                    .order_by(TelegramSubscription.id)
+                )
+            ),
         },
     }
     event = OrderEvent(

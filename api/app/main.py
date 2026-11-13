@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db, wait_for_database
 from .events import ORDER_CREATED, ORDER_STATUS_CHANGED, record_event
+from .internal import router as internal_router
 from .models import ALLOWED_TRANSITIONS, Order, OrderItem, OrderStatus, Pizza
 from .outbox import OutboxRelay, RabbitMQPublisher
 from .schemas import OrderCreate, OrderOut, OrderStatusUpdate, PizzaOut
@@ -145,6 +146,10 @@ if settings.cors_origins:
         allow_headers=["Content-Type"],
         max_age=600,
     )
+
+
+# Routes for the notification worker (ADR 0006): off without INTERNAL_API_TOKEN.
+app.include_router(internal_router)
 
 
 @app.exception_handler(RequestValidationError)

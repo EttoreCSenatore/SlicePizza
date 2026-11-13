@@ -58,6 +58,21 @@ To see what is waiting:
 SELECT id, type, created_at FROM order_events WHERE published_at IS NULL ORDER BY id;
 ```
 
+### Routes for the notification worker (/internal)
+
+Two routes let the worker link customers' Telegram chats to their orders ([ADR 0006](../docs/adr/0006-customer-telegram-opt-in.md)):
+
+| Method | Route | What it does |
+|---|---|---|
+| PUT | `/internal/orders/{id}/telegram-subscriptions/{chat_id}` | The chat follows the order (idempotent). Returns the order's current status |
+| DELETE | `/internal/telegram-subscriptions/{chat_id}` | The chat stops following every order |
+
+- They are **off** (404) unless `INTERNAL_API_TOKEN` is set, and then require `Authorization: Bearer <token>`.
+- **They are not public**: the web container answers 404 to `/api/internal/*`, so only containers on the project network can call them, at `http://api:8000/internal/...`.
+- They don't appear in `/docs`.
+
+Every event then carries the chats that follow its order, in `"notify": {"telegram_chat_ids": [...]}`.
+
 ### Calling the API from a browser (CORS)
 
 A browser only lets a page call an API on **another origin** (another domain, or another port) if the API says that origin is allowed. When the page and the API share an origin, nothing is needed. Otherwise, list the allowed origins in **`CORS_ORIGINS`**, comma-separated:
@@ -147,6 +162,7 @@ api/
 │   ├── config.py      # settings from environment variables
 │   ├── database.py    # engine, session and get_db dependency
 │   ├── events.py      # order events: format, record_event()
+│   ├── internal.py    # /internal routes for the notification worker
 │   ├── outbox.py      # relay that publishes the events to RabbitMQ
 │   ├── models.py      # SQLAlchemy models and status transitions
 │   ├── schemas.py     # Pydantic request/response schemas
@@ -158,6 +174,7 @@ api/
 │   ├── test_errors.py     # database errors → 503 or 500
 │   ├── test_config.py     # environment variables
 │   ├── test_events.py     # order events, the outbox and the relay
+│   ├── test_internal.py   # /internal routes, chat ids in events
 │   └── test_startup.py    # schema creation and menu seed
 ├── scripts/
 │   └── compile-requirements.sh  # regenerates the lock files
@@ -231,6 +248,7 @@ Usually you don't do this by hand: **Dependabot** proposes new versions once a w
 | `RABBITMQ_USER` | RabbitMQ user (required with `RABBITMQ_HOST`) | `slicepizza` |
 | `RABBITMQ_PASSWORD` | RabbitMQ password (required with `RABBITMQ_HOST`), any characters | `p@ss:w/rd` |
 | `RABBITMQ_VHOST` | Virtual host (optional, default `/`) | `/` |
+| `INTERNAL_API_TOKEN` | Optional. Turns on the `/internal` routes for the worker; at least 32 characters | `openssl rand -hex 32` |
 
 Docker Compose sets the `POSTGRES_*` variables from the root `.env`. The parts are passed separately, never pasted into a URL, so the password needs no URL-encoding.
 

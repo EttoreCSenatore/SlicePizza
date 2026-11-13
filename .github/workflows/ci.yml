@@ -179,6 +179,8 @@ jobs:
           # The interactive docs must load their schema through the /api prefix.
           curl -fsS http://127.0.0.1:8080/api/docs | grep -q "/api/openapi.json"
           curl -fsS http://127.0.0.1:8080/api/openapi.json > /dev/null
+          # The worker-only /internal routes must never be reachable through Caddy (ADR 0006).
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT http://127.0.0.1:8080/api/internal/orders/x/telegram-subscriptions/1)" = 404
           curl -fsS -X POST http://127.0.0.1:8080/api/orders \
             -H "Content-Type: application/json" \
             -d '{"customer":{"name":"CI","phone":"+55 11 90000-0000","address":"Rua do Teste, 1"},"items":[{"pizza_id":1,"quantity":1}]}'

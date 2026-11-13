@@ -38,6 +38,8 @@ for _name in ("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSW
 for _name in ("RABBITMQ_HOST", "RABBITMQ_PORT", "RABBITMQ_USER", "RABBITMQ_PASSWORD", "RABBITMQ_VHOST"):
     os.environ.pop(_name, None)
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+# Turns on the worker's /internal routes (test_internal.py).
+os.environ["INTERNAL_API_TOKEN"] = "test-internal-token-0123456789abcdef"
 # The origin the CORS tests treat as "the frontend" (see test_cors.py).
 os.environ["CORS_ORIGINS"] = "https://menu.slicepizza.test"
 
