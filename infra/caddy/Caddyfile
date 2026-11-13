@@ -13,9 +13,10 @@
 #   API_UPSTREAM       where the API listens, as host:port   (default api:8000)
 #   SITE_ROOT          folder with the site's files          (default /srv)
 #   EXTRA_CONNECT_SRC  other origins the page may call, space-separated
-#   TELEGRAM_BOT_USERNAME  the bot for "Follow on Telegram" (see config.js below)
 #                      (default none: the page only calls its own /api).
 #                      Needed only if config.js points at an API elsewhere.
+#   TELEGRAM_BOT_USERNAME  the bot for "Follow on Telegram", without the @
+#                      (default none: no button). See config.js below.
 {
 	# No admin endpoint, no certificates, nothing written to disk:
 	# the container can run as an unprivileged user.

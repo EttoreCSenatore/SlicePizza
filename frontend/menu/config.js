@@ -1,4 +1,6 @@
-// Where the menu site finds the Orders API. No trailing slash.
+// Settings for the menu site.
+//
+// apiUrl: where the site finds the Orders API. No trailing slash.
 //
 // "/api" means "the same domain as this page": the web container (Caddy,
 // infra/caddy/) forwards /api/* to the API, locally and in production. So the
