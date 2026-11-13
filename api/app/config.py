@@ -203,24 +203,43 @@ def rabbitmq_from_env() -> RabbitMQSettings | None:
 
 # A shared secret must not be guessable: 32 characters from a password
 # generator or `openssl rand -hex 32` (64) is plenty.
-MIN_INTERNAL_TOKEN_LENGTH = 32
+MIN_TOKEN_LENGTH = 32
+MIN_INTERNAL_TOKEN_LENGTH = MIN_TOKEN_LENGTH
+
+
+def _token_from_env(name: str) -> str | None:
+    """A shared secret from the environment: unset/empty is None, short is an error.
+
+    The value never appears in an error message.
+    """
+    token = (os.getenv(name) or "").strip()
+    if not token:
+        return None
+    if len(token) < MIN_TOKEN_LENGTH:
+        raise ConfigError(
+            f"{name} must be at least {MIN_TOKEN_LENGTH} characters "
+            "long; generate one with `openssl rand -hex 32`."
+        )
+    return token
 
 
 def internal_api_token_from_env() -> str | None:
     """The secret the worker sends to the /internal routes (ADR 0006).
 
     Unset or empty: those routes are off and answer 404, as if they did not
-    exist. The value never appears in an error message.
+    exist.
     """
-    token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
-    if not token:
-        return None
-    if len(token) < MIN_INTERNAL_TOKEN_LENGTH:
-        raise ConfigError(
-            f"INTERNAL_API_TOKEN must be at least {MIN_INTERNAL_TOKEN_LENGTH} characters "
-            "long; generate one with `openssl rand -hex 32`."
-        )
-    return token
+    return _token_from_env("INTERNAL_API_TOKEN")
+
+
+def kitchen_api_token_from_env() -> str | None:
+    """The secret the kitchen dashboard's requests carry (ADR 0007).
+
+    Caddy adds it to the requests it forwards from /kitchen/api/*, after the
+    kitchen login; browsers never see it. Unset or empty: listing orders and
+    changing their status are off (503), for everyone.
+    """
+    return _token_from_env("KITCHEN_API_TOKEN")
 
 
 class Settings:
@@ -231,6 +250,7 @@ class Settings:
         self.cors_origins: list[str] = cors_origins_from_env()
         self.rabbitmq: RabbitMQSettings | None = rabbitmq_from_env()
         self.internal_api_token: str | None = internal_api_token_from_env()
+        self.kitchen_api_token: str | None = kitchen_api_token_from_env()
 
 
 settings = Settings()

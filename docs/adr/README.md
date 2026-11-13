@@ -21,3 +21,4 @@ An accepted ADR is not edited. If the decision changes, write a new ADR and mark
 | [0004](0004-order-events-outbox-rabbitmq.md) | Order events through a transactional outbox and RabbitMQ | Accepted |
 | [0005](0005-notification-worker.md) | The notification worker: one queue, retries, dead letters | Accepted |
 | [0006](0006-customer-telegram-opt-in.md) | Customers follow their order on Telegram, linked through the API | Accepted |
+| [0007](0007-kitchen-login.md) | The kitchen board at /kitchen, behind a Caddy login and a token | Accepted |

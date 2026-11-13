@@ -1,0 +1,313 @@
+/* Zé's Pizzeria kitchen board. Same colours and type as the menu site
+   (frontend/menu/styles.css), laid out for a tablet or laptop by the oven:
+   big text, big buttons, one rail per status. */
+
+:root {
+  --basil: #1e5b3f;
+  --basil-dark: #164530;
+  --tomato: #c8321e;
+  --tomato-dark: #a52714;
+  --ink: #1b2420;
+  --muted: #5d6b63;
+  --paper: #ffffff;
+  --leaf: #f2f5f1;
+  --rail: #e3e9e3;
+  --line: #d5ddd6;
+  --error-bg: #fbeceb;
+
+  --serif: "Young Serif", Georgia, "Times New Roman", serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --radius: 6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--leaf);
+  color: var(--ink);
+  font: 400 1rem / 1.45 var(--sans);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--tomato);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Top bar ----------------------------------------------------------------- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  padding: 1rem clamp(1rem, 3vw, 2rem);
+  background: var(--basil);
+  color: var(--paper);
+}
+
+.bar-title {
+  margin: 0;
+  font: 400 1.5rem / 1.2 var(--serif);
+}
+
+.bar-status {
+  margin: 0;
+  color: #cfe0d5;
+  font-variant-numeric: tabular-nums;
+}
+
+.problem {
+  margin: 0;
+  padding: 0.75rem clamp(1rem, 3vw, 2rem);
+  background: var(--error-bg);
+  color: var(--tomato-dark);
+  font-weight: 600;
+}
+
+.notice {
+  margin: 0;
+  padding: 0.75rem clamp(1rem, 3vw, 2rem);
+  background: #fff4d6;
+  font-weight: 600;
+}
+
+/* --- Rails ------------------------------------------------------------------- */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  padding: clamp(1rem, 3vw, 2rem);
+  align-items: start;
+}
+
+@media (max-width: 56rem) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rail {
+  /* The ticket rail: a darker strip the tickets hang from. */
+  border-top: 6px solid var(--basil);
+  border-radius: var(--radius);
+  background: var(--rail);
+  padding: 0.75rem;
+}
+
+.rail-title {
+  margin: 0 0 0.75rem;
+  font: 400 1.35rem / 1.2 var(--serif);
+}
+
+.rail-count {
+  color: var(--muted);
+  font: 500 1rem var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-empty {
+  margin: 0;
+  padding: 1rem 0.25rem;
+  color: var(--muted);
+}
+
+.tickets {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- Tickets ----------------------------------------------------------------- */
+
+.ticket {
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 2px 2px var(--radius) var(--radius);
+  background: var(--paper);
+  /* The torn top edge of an order slip. */
+  border-top: 2px dashed var(--line);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.ticket.is-fresh {
+  animation: arrive 1.2s ease-out;
+}
+
+@keyframes arrive {
+  from {
+    background: #fff4d6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket.is-fresh {
+    animation: none;
+  }
+}
+
+.ticket-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* How long the order has waited: the first thing to read on a ticket. */
+.ticket-age {
+  margin: 0;
+  font: 400 2rem / 1 var(--serif);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket.is-late .ticket-age {
+  color: var(--tomato);
+}
+
+.ticket-meta {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-id {
+  font-weight: 600;
+}
+
+.ticket-items {
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.ticket-items li + li {
+  margin-top: 0.15rem;
+}
+
+.qty {
+  display: inline-block;
+  min-width: 2.2ch;
+  color: var(--tomato-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-customer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0 0 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.ticket-customer dt {
+  color: var(--muted);
+}
+
+.ticket-customer dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ticket-customer a {
+  color: var(--basil);
+}
+
+.ticket-error {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--error-bg);
+  color: var(--tomato-dark);
+}
+
+/* --- Buttons ----------------------------------------------------------------- */
+
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.confirm-question {
+  flex-basis: 100%;
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.btn {
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: var(--radius);
+  font: 600 1rem / 1 var(--sans);
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.btn-go {
+  flex: 1 1 auto;
+  background: var(--basil);
+  color: var(--paper);
+}
+
+.btn-go:hover:not(:disabled) {
+  background: var(--basil-dark);
+}
+
+.btn-quiet {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--muted);
+}
+
+.btn-danger {
+  background: var(--tomato);
+  color: var(--paper);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--tomato-dark);
+}

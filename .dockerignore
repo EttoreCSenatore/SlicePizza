@@ -3,4 +3,5 @@
 # .env...) stays out. The API image uses api/ as its context instead.
 *
 !frontend/menu
+!frontend/kitchen
 !infra/caddy

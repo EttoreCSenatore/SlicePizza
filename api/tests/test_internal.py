@@ -77,9 +77,9 @@ def test_internal_routes_are_not_in_the_public_docs(client):
 # --- Subscribing --------------------------------------------------------------
 
 
-def test_subscribe_returns_the_current_status(client, db):
+def test_subscribe_returns_the_current_status(client, kitchen, db):
     order_id = new_order(client)
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     response = subscribe(client, order_id)
 
@@ -189,31 +189,31 @@ def test_a_new_order_has_no_chats_to_notify(client, db):
     assert last_event(db).payload["notify"] == {"telegram_chat_ids": []}
 
 
-def test_status_changes_carry_the_chats_that_follow_the_order(client, db):
+def test_status_changes_carry_the_chats_that_follow_the_order(client, kitchen, db):
     order_id = new_order(client)
     subscribe(client, order_id, chat_id=111)
     subscribe(client, order_id, chat_id=-222)
 
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     assert last_event(db).payload["notify"] == {"telegram_chat_ids": [111, -222]}
 
 
-def test_only_this_orders_chats_are_included(client, db):
+def test_only_this_orders_chats_are_included(client, kitchen, db):
     order_id, other = new_order(client), new_order(client)
     subscribe(client, other, chat_id=999)
 
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     assert last_event(db).payload["notify"]["telegram_chat_ids"] == []
 
 
-def test_after_unsubscribing_the_chat_is_no_longer_notified(client, db):
+def test_after_unsubscribing_the_chat_is_no_longer_notified(client, kitchen, db):
     order_id = new_order(client)
     subscribe(client, order_id)
     client.delete(f"/internal/telegram-subscriptions/{CHAT}", headers=AUTH)
 
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     assert last_event(db).payload["notify"]["telegram_chat_ids"] == []
 

@@ -1,6 +1,6 @@
 """End to end: a customer follows their order on Telegram (ADR 0006).
 
-Needs, already running: the API (with INTERNAL_API_TOKEN, RabbitMQ and
+Needs, already running: the API (with INTERNAL_API_TOKEN, KITCHEN_API_TOKEN, RabbitMQ and
 Postgres), the worker (TELEGRAM_BOT_TOKEN set, TELEGRAM_API_URL pointing at
 fake_telegram.py, TELEGRAM_PIZZERIA_CHAT_ID=-100999), and fake_telegram.py.
 
@@ -29,7 +29,10 @@ TIMEOUT = 30
 
 def call(method, url, body=None):
     data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if method == "PATCH":  # status changes are the kitchen's (ADR 0007)
+        headers["Authorization"] = f"Bearer {os.environ['KITCHEN_API_TOKEN']}"
+    request = urllib.request.Request(url, data=data, method=method, headers=headers)
     with urllib.request.urlopen(request, timeout=10) as response:
         return json.loads(response.read() or b"null")
 

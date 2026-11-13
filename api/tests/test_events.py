@@ -83,9 +83,9 @@ def test_event_leaves_out_phone_and_address(client, db):
     assert ORDER_PAYLOAD["customer"]["address"] not in text
 
 
-def test_status_change_records_an_event_with_the_previous_status(client, db):
+def test_status_change_records_an_event_with_the_previous_status(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     created, changed = events(db, order_id)
     assert created.type == ORDER_CREATED
@@ -95,10 +95,10 @@ def test_status_change_records_an_event_with_the_previous_status(client, db):
     assert changed.id > created.id
 
 
-def test_every_step_of_an_order_records_one_event(client, db):
+def test_every_step_of_an_order_records_one_event(client, kitchen, db):
     order_id = create_order(client).json()["id"]
     for status in ("preparing", "out_for_delivery", "delivered"):
-        assert client.patch(f"/orders/{order_id}/status", json={"status": status}).status_code == 200
+        assert kitchen.patch(f"/orders/{order_id}/status", json={"status": status}).status_code == 200
 
     assert [(e.payload["order"]["previous_status"], e.payload["order"]["status"]) for e in events(db)] == [
         (None, "received"),
@@ -108,16 +108,16 @@ def test_every_step_of_an_order_records_one_event(client, db):
     ]
 
 
-def test_repeating_the_current_status_records_no_event(client, db):
+def test_repeating_the_current_status_records_no_event(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "received"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "received"})
 
     assert [e.type for e in events(db)] == [ORDER_CREATED]
 
 
-def test_refused_status_change_records_no_event(client, db):
+def test_refused_status_change_records_no_event(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    response = client.patch(f"/orders/{order_id}/status", json={"status": "delivered"})
+    response = kitchen.patch(f"/orders/{order_id}/status", json={"status": "delivered"})
 
     assert response.status_code == 409
     assert [e.type for e in events(db)] == [ORDER_CREATED]
@@ -146,9 +146,9 @@ def test_order_and_event_are_saved_together_or_not_at_all(client, db, monkeypatc
     assert events(db) == []
 
 
-def test_every_event_gets_its_own_id(client, db):
+def test_every_event_gets_its_own_id(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
 
     ids = [e.event_id for e in events(db)]
     assert len(set(ids)) == 2
@@ -158,9 +158,9 @@ def test_every_event_gets_its_own_id(client, db):
 # --- Publishing ---------------------------------------------------------------
 
 
-def test_publish_pending_sends_events_in_order_and_marks_them(client, db):
+def test_publish_pending_sends_events_in_order_and_marks_them(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
     publisher = FakePublisher()
 
     with SessionLocal() as session:
@@ -186,11 +186,11 @@ def test_message_body_is_the_payload_plus_the_event_id(client, db):
     assert body == {**event.payload, "event_id": event.event_id}
 
 
-def test_a_failure_stops_the_round_and_keeps_the_rest_in_order(client, db):
+def test_a_failure_stops_the_round_and_keeps_the_rest_in_order(client, kitchen, db):
     """Events after a failed one wait, so consumers never see them out of order."""
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
-    client.patch(f"/orders/{order_id}/status", json={"status": "out_for_delivery"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "out_for_delivery"})
     first, second, third = events(db)
     publisher = FakePublisher(fail_on={second.id})
 
@@ -209,10 +209,10 @@ def test_a_failure_stops_the_round_and_keeps_the_rest_in_order(client, db):
     assert [m["event_id"] for m in publisher.published] == [first.event_id, second.event_id, third.event_id]
 
 
-def test_publish_pending_respects_the_batch_size(client, db):
+def test_publish_pending_respects_the_batch_size(client, kitchen, db):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
-    client.patch(f"/orders/{order_id}/status", json={"status": "out_for_delivery"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "out_for_delivery"})
     publisher = FakePublisher()
 
     with SessionLocal() as session:

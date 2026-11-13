@@ -23,8 +23,8 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 
 | Container | Image | Public? | Settings |
 |---|---|---|---|
-| `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`). `TELEGRAM_BOT_USERNAME`: the bot for the "Follow on Telegram" button, without the @ (unset: no button) |
-| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below. `INTERNAL_API_TOKEN` for the worker's routes ([ADR 0006](adr/0006-customer-telegram-opt-in.md)) |
+| `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`). `TELEGRAM_BOT_USERNAME`: the bot for the "Follow on Telegram" button, without the @ (unset: no button). `KITCHEN_PASSWORD_HASH`, `KITCHEN_USERNAME` and `KITCHEN_API_TOKEN` for the kitchen board (see [Kitchen](#kitchen)) |
+| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below. `INTERNAL_API_TOKEN` for the worker's routes ([ADR 0006](adr/0006-customer-telegram-opt-in.md)). `KITCHEN_API_TOKEN` for the kitchen's routes ([ADR 0007](adr/0007-kitchen-login.md)) |
 
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
 | `rabbitmq` | `rabbitmq:4.4.0-management-alpine` | No: only `api` and `worker` reach it | See [RabbitMQ](#rabbitmq) |
@@ -100,6 +100,33 @@ How to create the bot and find the chat id: [worker/README.md](../worker/README.
 - `https://slicepizza.senatore.tech/api/docs` shows the API's interactive docs.
 - The tag `sha-<commit>` on each running image shows which commit is live.
 
+## Kitchen
+
+The kitchen board is at `https://slicepizza.senatore.tech/kitchen/`, behind a login ([ADR 0007](adr/0007-kitchen-login.md)). It needs three settings:
+
+| Setting | On | Value |
+|---|---|---|
+| `KITCHEN_API_TOKEN` | `api` **and** `web`, the same value | `openssl rand -hex 32` |
+| `KITCHEN_PASSWORD_HASH` | `web` | The login's password, hashed and base64-encoded (below) |
+| `KITCHEN_USERNAME` | `web` | Optional, default `kitchen` |
+
+To make the hash, run this on any machine with Docker. It asks for the password twice and prints the value:
+
+```bash
+docker run --rm -it caddy:2.11.8-alpine sh -c 'caddy hash-password | base64 -w0; echo'
+```
+
+Only the hash goes on the server; keep the password in the team's password manager. Use a long one: the login is the only thing between the internet and customers' phone numbers and addresses.
+
+What happens when something is missing:
+
+- **No `KITCHEN_PASSWORD_HASH`**: `/kitchen` answers 404.
+- **A malformed `KITCHEN_PASSWORD_HASH`** (cut short when pasting, say): `/kitchen` answers 404 too, and the `web` log starts with an `ERROR: KITCHEN_PASSWORD_HASH ...` line. The rest of the site keeps working: the image checks the value before Caddy loads it ([`infra/caddy/start.sh`](../infra/caddy/start.sh)), since Caddy wouldn't start at all with it.
+- **No `KITCHEN_API_TOKEN` on `api`**: nobody can list orders or change a status (503); the board says the kitchen isn't connected.
+- **Different values on `api` and `web`**: the board loads, but says the kitchen isn't connected (the API answers 401).
+
+To change the password, set a new hash and restart `web`. Everyone then logs in again with the new password.
+
 ## One-time setup
 
 1. After the first image of each kind is published, make the packages public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api`, `slicepizza-web` and `slicepizza-worker` → **Package settings** → **Change visibility** → Public. (The server downloads them without a password.) Only organization owners can change it.
@@ -112,6 +139,7 @@ How to create the bot and find the chat id: [worker/README.md](../worker/README.
    - `rabbitmq` with a fixed hostname and its volume, and `RABBITMQ_*` on `api` (see [RabbitMQ](#rabbitmq)).
    - `worker`: `ghcr.io/senatoreteam/slicepizza-worker:latest` with its variables (see [Worker](#worker)), in the automatic update too. One instance only.
    - The same `INTERNAL_API_TOKEN` (`openssl rand -hex 32`) on `api` and `worker`.
+   - The kitchen login: see [Kitchen](#kitchen). Until it is set, nobody can change an order's status.
    - `TELEGRAM_BOT_USERNAME` on `web` (the bot's username, without the @), so the order page shows **Follow on Telegram**. Set it once the worker has its token and `INTERNAL_API_TOKEN`; before that the button would lead to a bot that can't link the order.
 3. Point the domains' DNS to the server: `A slicepizza → 179.66.139.4`, `A @ → 179.66.139.4` and `CNAME www → senatore.tech` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there; if the proxy tried before that, restart the `web` container so it tries again.
 

@@ -13,7 +13,6 @@ They live under /internal and are:
 They are left out of the OpenAPI schema (/docs).
 """
 
-import hmac
 import uuid
 from typing import Annotated
 
@@ -22,6 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
+from .auth import bearer_matches, unauthorized
 from .config import settings
 from .database import get_db
 from .models import Order, OrderItem, TelegramSubscription
@@ -37,14 +37,8 @@ def require_worker(authorization: str | None = Header(default=None)) -> None:
     token = settings.internal_api_token
     if token is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
-    scheme, _, given = (authorization or "").partition(" ")
-    # compare_digest: the time taken does not reveal how much of it matched.
-    if scheme.lower() != "bearer" or not hmac.compare_digest(given.encode(), token.encode()):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if not bearer_matches(authorization, token):
+        raise unauthorized()
 
 
 router = APIRouter(

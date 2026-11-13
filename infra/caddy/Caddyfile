@@ -17,6 +17,14 @@
 #                      Needed only if config.js points at an API elsewhere.
 #   TELEGRAM_BOT_USERNAME  the bot for "Follow on Telegram", without the @
 #                      (default none: no button). See config.js below.
+#   KITCHEN_USERNAME   the kitchen login's user name      (default kitchen)
+#   KITCHEN_PASSWORD_HASH  bcrypt hash of its password, from
+#                      `caddy hash-password`, base64-encoded or not (default
+#                      none: /kitchen is off). The image's start script turns
+#                      the kitchen off if the value is malformed (start.sh).
+#   KITCHEN_API_TOKEN  the token the API expects from the kitchen (the same
+#                      value as on the API, ADR 0007)
+#   KITCHEN_ROOT       folder with the kitchen page     (default /srv-kitchen)
 {
 	# No admin endpoint, no certificates, nothing written to disk:
 	# the container can run as an unprivileged user.
@@ -32,6 +40,18 @@
 		# proxy's IP and "http". Nothing outside the server reaches :8080.
 		trusted_proxies static private_ranges
 		client_ip_headers X-Forwarded-For
+	}
+}
+
+# Headers for the pages: the menu site and the kitchen.
+(page_headers) {
+	header {
+		# Every deploy can change the HTML, JavaScript and config.js. The
+		# browser keeps them but asks first (cheap: 304 Not Modified).
+		Cache-Control "no-cache"
+		# Only this site's own files, plus the fonts from Google Fonts.
+		# The swagger page at /api/docs is not covered (different handle).
+		Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' {$EXTRA_CONNECT_SRC}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 	}
 }
 
@@ -56,6 +76,46 @@
 		respond "Not Found" 404
 	}
 
+	# The kitchen dashboard (ADR 0007): a login, then the page and its API
+	# calls. Off (404) until KITCHEN_PASSWORD_HASH is set.
+	@kitchen_off {
+		path /kitchen /kitchen/*
+		expression `{env.KITCHEN_PASSWORD_HASH} == ""`
+	}
+	handle @kitchen_off {
+		respond "Not Found" 404
+	}
+
+	@kitchen path /kitchen /kitchen/*
+	handle @kitchen {
+		# Asks for KITCHEN_USERNAME (default "kitchen") and the password whose
+		# bcrypt hash is KITCHEN_PASSWORD_HASH (`caddy hash-password`, which
+		# Caddy also accepts base64-encoded). The
+		# fallback hash is of a random password nobody has; it is never used,
+		# since the block above answers 404 when the variable is empty.
+		basic_auth bcrypt "Zé's Pizzeria kitchen" {
+			{$KITCHEN_USERNAME:kitchen} {$KITCHEN_PASSWORD_HASH:$2a$14$.Q0udJ7HbtEAFRPKiJ5mTuOjNPXB7E86gL06nmuoYhP4G8JulL4BK}
+		}
+
+		redir /kitchen /kitchen/ 308
+
+		# The page's API calls: /kitchen/api/orders reaches the API as /orders.
+		# The browser's login is replaced by the kitchen token, which only
+		# this container and the API know: browsers never see it, and a call
+		# straight to /api/... without it is refused by the API.
+		handle_path /kitchen/api/* {
+			reverse_proxy {$API_UPSTREAM:api:8000} {
+				header_up Authorization "Bearer {$KITCHEN_API_TOKEN}"
+			}
+		}
+
+		handle_path /kitchen/* {
+			root * {$KITCHEN_ROOT:/srv-kitchen}
+			file_server
+			import page_headers
+		}
+	}
+
 	# /api/menu reaches the API as /menu. The API is started with
 	# UVICORN_ROOT_PATH=/api, so the links it generates (the interactive docs
 	# at /api/docs) include the prefix.
@@ -77,13 +137,6 @@
 		}
 		file_server
 
-		header {
-			# Every deploy can change index.html, app.js and config.js. The
-			# browser keeps them but asks first (cheap: 304 Not Modified).
-			Cache-Control "no-cache"
-			# Only this site's own files, plus the fonts from Google Fonts.
-			# The swagger page at /api/docs is not covered (different handle).
-			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' {$EXTRA_CONNECT_SRC}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-		}
+		import page_headers
 	}
 }

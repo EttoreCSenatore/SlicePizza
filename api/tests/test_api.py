@@ -167,21 +167,21 @@ def test_order_items_keep_the_order_they_were_sent_in(client):
     assert [item["pizza_id"] for item in response.json()["items"]] == [5, 1, 3]
 
 
-def test_order_follows_the_status_flow(client):
+def test_order_follows_the_status_flow(client, kitchen):
     order_id = create_order(client).json()["id"]
 
     for new_status in ["preparing", "out_for_delivery", "delivered"]:
-        response = client.patch(
+        response = kitchen.patch(
             f"/orders/{order_id}/status", json={"status": new_status}
         )
         assert response.status_code == 200
         assert response.json()["status"] == new_status
 
 
-def test_order_can_be_cancelled_while_received(client):
+def test_order_can_be_cancelled_while_received(client, kitchen):
     order_id = create_order(client).json()["id"]
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "cancelled"}
     )
 
@@ -189,10 +189,10 @@ def test_order_can_be_cancelled_while_received(client):
     assert response.json()["status"] == "cancelled"
 
 
-def test_order_cannot_skip_statuses(client):
+def test_order_cannot_skip_statuses(client, kitchen):
     order_id = create_order(client).json()["id"]
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "delivered"}
     )
 
@@ -200,21 +200,21 @@ def test_order_cannot_skip_statuses(client):
     assert "preparing" in response.json()["detail"]
 
 
-def test_cancelled_order_is_final(client):
+def test_cancelled_order_is_final(client, kitchen):
     order_id = create_order(client).json()["id"]
-    client.patch(f"/orders/{order_id}/status", json={"status": "cancelled"})
+    kitchen.patch(f"/orders/{order_id}/status", json={"status": "cancelled"})
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "preparing"}
     )
 
     assert response.status_code == 409
 
 
-def test_repeating_status_is_a_no_op(client):
+def test_repeating_status_is_a_no_op(client, kitchen):
     order_id = create_order(client).json()["id"]
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "received"}
     )
 
@@ -222,25 +222,25 @@ def test_repeating_status_is_a_no_op(client):
     assert response.json()["status"] == "received"
 
 
-def test_status_update_rejects_unknown_status(client):
+def test_status_update_rejects_unknown_status(client, kitchen):
     order_id = create_order(client).json()["id"]
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "flying"}
     )
 
     assert response.status_code == 422
 
 
-def test_status_update_on_unknown_order(client):
-    response = client.patch(
+def test_status_update_on_unknown_order(client, kitchen):
+    response = kitchen.patch(
         f"/orders/{uuid.uuid4()}/status", json={"status": "preparing"}
     )
 
     assert response.status_code == 404
 
 
-def test_status_update_changes_updated_at(client, db):
+def test_status_update_changes_updated_at(client, kitchen, db):
     order_id = create_order(client).json()["id"]
     # Move updated_at far into the past, so any real update is visible even on
     # SQLite, whose timestamps only have one-second resolution.
@@ -251,7 +251,7 @@ def test_status_update_changes_updated_at(client, db):
     )
     db.commit()
 
-    response = client.patch(
+    response = kitchen.patch(
         f"/orders/{order_id}/status", json={"status": "preparing"}
     )
 
@@ -259,7 +259,7 @@ def test_status_update_changes_updated_at(client, db):
     assert not response.json()["updated_at"].startswith("2000-")
 
 
-def test_status_update_uses_a_single_update_statement(client):
+def test_status_update_uses_a_single_update_statement(client, kitchen):
     """The response comes from UPDATE ... RETURNING, not a SELECT afterwards."""
     order_id = create_order(client).json()["id"]
     statements = []
@@ -269,7 +269,7 @@ def test_status_update_uses_a_single_update_statement(client):
 
     event.listen(engine, "before_cursor_execute", record)
     try:
-        client.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
+        kitchen.patch(f"/orders/{order_id}/status", json={"status": "preparing"})
     finally:
         event.remove(engine, "before_cursor_execute", record)
 
@@ -286,7 +286,7 @@ postgres_only = pytest.mark.skipif(
 )
 
 
-def patch_concurrently(client, monkeypatch, order_id, statuses):
+def patch_concurrently(kitchen, monkeypatch, order_id, statuses):
     """Send one PATCH per status at the same time, making their reads overlap.
 
     Every request waits at a barrier before loading the order, then holds the
@@ -306,7 +306,7 @@ def patch_concurrently(client, monkeypatch, order_id, statuses):
     responses = [None] * len(statuses)
 
     def send(index, new_status):
-        responses[index] = client.patch(
+        responses[index] = kitchen.patch(
             f"/orders/{order_id}/status", json={"status": new_status}
         )
 
@@ -322,11 +322,11 @@ def patch_concurrently(client, monkeypatch, order_id, statuses):
 
 
 @postgres_only
-def test_conflicting_concurrent_updates_one_wins(client, monkeypatch):
+def test_conflicting_concurrent_updates_one_wins(client, kitchen, monkeypatch):
     order_id = create_order(client).json()["id"]
 
     responses = patch_concurrently(
-        client, monkeypatch, order_id, ["preparing", "cancelled"]
+        kitchen, monkeypatch, order_id, ["preparing", "cancelled"]
     )
 
     codes = sorted(r.status_code for r in responses)
@@ -336,11 +336,11 @@ def test_conflicting_concurrent_updates_one_wins(client, monkeypatch):
 
 
 @postgres_only
-def test_identical_concurrent_updates_both_succeed(client, monkeypatch):
+def test_identical_concurrent_updates_both_succeed(client, kitchen, monkeypatch):
     order_id = create_order(client).json()["id"]
 
     responses = patch_concurrently(
-        client, monkeypatch, order_id, ["preparing", "preparing"]
+        kitchen, monkeypatch, order_id, ["preparing", "preparing"]
     )
 
     assert [r.status_code for r in responses] == [200, 200]

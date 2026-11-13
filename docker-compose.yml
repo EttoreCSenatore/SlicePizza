@@ -84,6 +84,10 @@ services:
       # Turns on the routes the worker calls to link customers' Telegram chats
       # to their orders (ADR 0006). Unset: those routes answer 404.
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      # Only requests carrying it may list orders and change their status: the
+      # web container adds it behind the kitchen login (ADR 0007). Unset:
+      # nobody can (503).
+      KITCHEN_API_TOKEN: ${KITCHEN_API_TOKEN:-}
     # Same restrictions as on the server (docs/DEPLOY.md).
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -156,6 +160,11 @@ services:
       API_UPSTREAM: api:8000
       # The bot behind "Follow on Telegram" on the order page; unset: no button.
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      # The kitchen board at /kitchen (ADR 0007): its login, and the token it
+      # adds to the requests it forwards (the same as the api's). No hash: off.
+      KITCHEN_USERNAME: ${KITCHEN_USERNAME:-kitchen}
+      KITCHEN_PASSWORD_HASH: ${KITCHEN_PASSWORD_HASH:-}
+      KITCHEN_API_TOKEN: ${KITCHEN_API_TOKEN:-}
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     depends_on:
