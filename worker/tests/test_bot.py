@@ -31,6 +31,9 @@ class FakeTelegram:
     def send(self, chat_id, text):
         self.sent.append((chat_id, text))
 
+    def get_me(self):
+        return {"id": 42, "is_bot": True, "username": "ZesPizzeriaBot"}
+
     def get_updates(self, offset, timeout):
         self.offsets.append(offset)
         if not self.batches:
@@ -129,6 +132,27 @@ def test_commands_addressed_to_the_bot_in_a_group():
     poller(api, telegram).handle(message(f"/start@ZesPizzeriaBot {ORDER}", chat_id=-100, chat_type="group"))
 
     assert api.followed == [(ORDER, -100)]
+
+
+def test_commands_for_another_bot_in_the_same_group_are_ignored():
+    """"/stop@OtherBot" must not unlink the pizzeria's group from its orders."""
+    telegram, api = FakeTelegram(), FakeApi()
+    bot = poller(api, telegram)
+    bot.username = "zespizzeriabot"
+
+    bot.handle(message("/stop@OtherBot", chat_id=-100, chat_type="group"))
+    bot.handle(message("/stop@ZesPizzeriaBot", chat_id=-100, chat_type="group"))
+
+    assert api.unfollowed == [-100]  # only the one addressed to us
+
+
+def test_the_loop_learns_the_bots_username_first():
+    telegram = FakeTelegram()
+    bot = poller(FakeApi(), telegram)
+
+    run_until(bot, lambda: telegram.offsets)
+
+    assert bot.username == "zespizzeriabot"
 
 
 def test_other_text_gets_help_in_private_but_is_ignored_in_groups():
@@ -234,3 +258,10 @@ def test_get_updates_conflict_is_temporary():
     with FakeServer(lambda method, path, body, headers: (409, answer)) as server:
         with pytest.raises(TemporaryFailure, match="409"):
             TelegramSender("123:SECRET", server.url).get_updates(offset=None, timeout=0)
+
+
+def test_get_me_reads_the_username():
+    answer = {"ok": True, "result": {"id": 42, "is_bot": True, "username": "ZesPizzeriaBot"}}
+    with FakeServer(lambda method, path, body, headers: (200, answer)) as server:
+        assert TelegramSender("123:SECRET", server.url).get_me()["username"] == "ZesPizzeriaBot"
+    assert server.requests[0]["path"] == "/bot123:SECRET/getMe"

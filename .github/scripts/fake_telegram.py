@@ -2,6 +2,7 @@
 
 The worker talks to it as if it were api.telegram.org (TELEGRAM_API_URL):
 
+- POST /bot<token>/getMe        the bot's account (username FakePizzeriaBot)
 - POST /bot<token>/getUpdates   long polling, answers with injected updates
 - POST /bot<token>/sendMessage  records the message; answers 403 for chats
                                 listed in BLOCKED_CHATS (the bot was blocked)
@@ -81,6 +82,8 @@ class Handler(BaseHTTPRequestHandler):
                 while not updates and time.monotonic() < deadline:
                     lock.wait(deadline - time.monotonic())
                 return self._json(200, {"ok": True, "result": list(updates)})
+        if method == "getMe":
+            return self._json(200, {"ok": True, "result": {"id": 42, "is_bot": True, "username": "FakePizzeriaBot"}})
         if method == "sendMessage":
             with lock:
                 if body["chat_id"] in blocked:

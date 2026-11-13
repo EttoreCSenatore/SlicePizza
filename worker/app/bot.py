@@ -48,9 +48,16 @@ class BotPoller:
         self._stop = stop_event
         self._poll_seconds = poll_seconds
         self._offset: int | None = None
+        # The bot's own username, to tell "/stop@ThisBot" from "/stop@OtherBot"
+        # in groups. Unknown (None) until getMe answers.
+        self.username: str | None = None
 
     def run(self) -> None:
         backoff = 1.0
+        try:
+            self.username = (self._telegram.get_me().get("username") or "").lower() or None
+        except SendFailure as error:
+            logger.warning("Could not read the bot's username (%s); commands like /stop@Bot are all taken as ours", error)
         logger.info("Listening to the bot's messages")
         while not self._stop.is_set():
             try:
@@ -95,7 +102,10 @@ class BotPoller:
             return
 
         word, _, argument = text.strip().partition(" ")
-        command = word.split("@", 1)[0].lower()  # "/start@ZesPizzeriaBot" in groups
+        # In groups a command may name its bot: "/start@ZesPizzeriaBot".
+        command, _, addressee = word.lower().partition("@")
+        if addressee and self.username and addressee != self.username:
+            return  # for another bot in the same group
         argument = argument.strip()
 
         if command == "/start":

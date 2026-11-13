@@ -87,6 +87,11 @@ class TelegramSender:
             {"chat_id": chat_id, "text": text, "link_preview_options": {"is_disabled": True}},
         )
 
+    def get_me(self) -> dict:
+        """The bot's own account, e.g. {"username": "ZesPizzeriaBot", ...}."""
+        result = self._call("getMe", {})
+        return result if isinstance(result, dict) else {}
+
     def get_updates(self, offset: int | None, timeout: int) -> list[dict]:
         """Long polling: waits up to ``timeout`` seconds for new messages to the bot.
 
