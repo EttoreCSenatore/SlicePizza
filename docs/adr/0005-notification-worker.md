@@ -43,13 +43,14 @@ slicepizza.dead-letter ────► notifications.dead-letter (kept until a p
 | Unreadable message, unknown version | Dead-letter it and log an error, **without the body** (it has a customer's name) |
 | Known version, unknown event type | Acknowledge and ignore it: a newer API may publish events this worker does not need |
 | Duplicate event (same `event_id`) | Acknowledge it without sending again |
-| The worker crashes on a message | RabbitMQ gives it back; after 20 deliveries it is dead-lettered |
+| The worker crashes (or loses its connection) on a message | RabbitMQ gives it back; after 20 such failed deliveries it is dead-lettered |
 
-**Two numbers work together:**
+**Holding a message while Telegram is down.** RabbitMQ closes the channel of a consumer that keeps a message unacknowledged for 30 minutes (`consumer_timeout`). So the worker holds a message for at most 18 minutes, then gives it back itself (`basic.nack` with requeue) and takes it again. Since RabbitMQ 4.3, a nack is **not** a failed delivery:
 
-- RabbitMQ closes the channel of a consumer that keeps a message unacknowledged for 30 minutes (`consumer_timeout`). Each such return counts toward the delivery limit.
-- So during a long Telegram outage, the worker holds a message for at most 18 minutes, then gives it back itself and takes it again.
-- 20 deliveries × 18 minutes is about **6 hours of outage** before a message is set aside, while a crash loop caused by a bug is cut off after 20 quick attempts.
+- it does not count toward the delivery limit;
+- the message goes back to its original position.
+
+So a Telegram outage, however long, never dead-letters a message and never reorders them. A crash or a lost connection **does** count, so a bug that crashes the worker on one message is cut off after 20 attempts.
 
 **Duplicates** are dropped by `event_id`, remembering the last 10 000 in memory. Delivery is at least once (ADR 0004), and duplicates are rare: they need the API to stop between publishing and marking the event published.
 
@@ -60,6 +61,7 @@ slicepizza.dead-letter ────► notifications.dead-letter (kept until a p
 ## Consequences
 
 - **The phase's "done when" is tested in CI.** `.github/scripts/smoke_worker_down.py` stops the worker, places an order, sees the message waiting in `notifications`, starts the worker and sees the message handled.
+- **This relies on RabbitMQ 4.3's counting.** Up to 4.2, every requeue counted toward the delivery limit, so a long outage could dead-letter messages. `docker-compose.yml` and CI pin 4.3.4, and Dependabot leaves RabbitMQ majors alone. Any downgrade must keep this in mind.
 - **One stuck message stops the ones behind it** while Telegram is failing. That's on purpose: messages arrive in order, and nothing is lost. Phase 5 should alert when `notifications` has messages older than a few minutes.
 - **Dead-lettered messages need a person.** Look in `notifications.dead-letter` (management UI → Queues), fix the cause, then move them back to `notifications` (the UI's "Move messages" needs the `rabbitmq_shovel` and `rabbitmq_shovel_management` plugins enabled) or delete them.
 - **The dedupe memory is lost on restart**, so a duplicate arriving right after a restart is sent twice. That's acceptable for a notification. Step 2b adds storage (for customers' Telegram chats), and the dedupe can move there if needed.

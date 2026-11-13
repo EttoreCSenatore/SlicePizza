@@ -1,6 +1,7 @@
 """Worker settings, read from environment variables once at startup."""
 
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -50,7 +51,7 @@ def load_settings() -> Settings:
 
     token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
     chat_id = (os.getenv("TELEGRAM_PIZZERIA_CHAT_ID") or "").strip()
-    if chat_id and not chat_id.lstrip("-").isdigit() and not chat_id.startswith("@"):
+    if chat_id and not re.fullmatch(r"-?\d+|@\w{4,}", chat_id):
         raise ConfigError(
             "TELEGRAM_PIZZERIA_CHAT_ID must be a numeric chat id (e.g. -1001234567890) "
             f"or a public @channelname, got {chat_id!r}."

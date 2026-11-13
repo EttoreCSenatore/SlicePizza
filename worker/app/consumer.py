@@ -37,15 +37,17 @@ BINDING_KEY = "order.#"
 DEAD_LETTER_EXCHANGE = "slicepizza.dead-letter"
 DEAD_LETTER_QUEUE = "notifications.dead-letter"
 
-# A message that fails this many deliveries (the worker crashed on it, or gave
-# it back) goes to the dead-letter queue instead of blocking the queue forever.
+# A message whose delivery fails this many times (the worker crashed or lost
+# its connection while holding it) goes to the dead-letter queue instead of
+# blocking the queue forever: a bug that crashes the worker on one message
+# cannot stop all the others.
 DELIVERY_LIMIT = 20
 # Hold a message for at most this long while Telegram is failing, then give it
-# back and take it again. RabbitMQ closes the channel of a consumer that keeps
-# a message unacknowledged for 30 minutes (consumer_timeout); giving it back
-# first keeps that in our hands. Each give-back counts as one delivery, so
-# DELIVERY_LIMIT x MAX_HOLD_SECONDS (about 6 h) of Telegram outage passes
-# before a message is set aside in the dead-letter queue.
+# back (basic.nack with requeue) and take it again. RabbitMQ would otherwise
+# return it after its 30-minute consumer_timeout by closing the channel.
+# Since RabbitMQ 4.3, a nack is not a failed delivery: it does not count
+# toward DELIVERY_LIMIT, and the message keeps its place in the queue. So a
+# Telegram outage, however long, never dead-letters a message.
 MAX_HOLD_SECONDS = 18 * 60
 # Pauses between retries: temporary failures start at 1 s and double; a setup
 # problem (wrong token or chat) waits SETUP_RETRY_SECONDS each time.

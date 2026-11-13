@@ -39,7 +39,7 @@ docker compose up --build
 docker compose logs -f worker
 ```
 
-Without `TELEGRAM_BOT_TOKEN` in `.env`, the worker **writes each message to its log** instead of sending it. Place an order at <http://localhost:8080> and watch it appear.
+Without `TELEGRAM_BOT_TOKEN` in `.env`, the worker **writes each message to its log** instead of sending it. Place an order at <http://localhost:8080> and watch it appear. (Meant for development: the messages include customers' names, so on the server set the token.)
 
 To see the queue: the RabbitMQ management UI at <http://localhost:15672> → Queues → `notifications`.
 

@@ -49,7 +49,7 @@ def test_valid_chat_ids(env, chat_id):
     assert load_settings().telegram_pizzeria_chat_id == chat_id
 
 
-@pytest.mark.parametrize("chat_id", ["pizzeria", "https://t.me/zes", "12 34"])
+@pytest.mark.parametrize("chat_id", ["pizzeria", "https://t.me/zes", "12 34", "--5", "-", "@", "@a b"])
 def test_invalid_chat_ids_are_refused(env, chat_id):
     env.setenv("TELEGRAM_PIZZERIA_CHAT_ID", chat_id)
 

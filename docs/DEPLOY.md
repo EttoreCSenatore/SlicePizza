@@ -90,7 +90,7 @@ The notification worker ([`worker/`](../worker/), [ADR 0005](adr/0005-notificati
 | Health | Healthy while `/tmp/worker-alive` is less than 30 s old (see `docker-compose.yml`) |
 | Restarts | Safe at any time: a message is acknowledged only after it was sent; an interrupted one goes back to the queue |
 
-How to create the bot and find the chat id: [worker/README.md](../worker/README.md#setting-up-telegram). Without `TELEGRAM_BOT_TOKEN` the worker only logs the messages, which is a safe way to deploy it first and add the bot afterwards.
+How to create the bot and find the chat id: [worker/README.md](../worker/README.md#setting-up-telegram). Without `TELEGRAM_BOT_TOKEN` the worker writes the messages to its log instead of sending them. That is meant for local development and CI: the messages include customers' names, so on the server set the token when you deploy the worker (or accept names in the logs until you do).
 
 ## Checking the deploy
 
