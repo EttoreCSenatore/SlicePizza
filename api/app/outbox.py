@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .events import EXCHANGE, message_body
@@ -235,9 +236,10 @@ class OutboxRelay:
                     _describe(error),
                     backoff,
                 )
-                # A PublishError leaves the connection usable, anything else
-                # (connection lost, database down) starts over with a new one.
-                if publisher is not None and not isinstance(error, PublishError):
+                # A refused event or a database error leaves the RabbitMQ
+                # connection usable; anything else (connection lost) starts
+                # over with a new one.
+                if publisher is not None and not isinstance(error, (PublishError, SQLAlchemyError)):
                     publisher.close()
                     publisher = None
                 self._stop.wait(backoff)

@@ -297,6 +297,39 @@ def test_relay_keeps_trying_when_rabbitmq_is_down(client):
     assert len(attempts) == 2
 
 
+def test_relay_keeps_the_rabbitmq_connection_when_the_database_fails(client, monkeypatch):
+    """A database error is retried without dropping a healthy RabbitMQ connection."""
+    from sqlalchemy.exc import OperationalError
+
+    from app import outbox
+
+    publisher = FakePublisher()
+    connections = []
+    real_publish_pending = outbox.publish_pending
+    calls = []
+
+    def flaky_publish_pending(db, pub, *args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OperationalError("SELECT", {}, Exception("database restarting"))
+        return real_publish_pending(db, pub, *args, **kwargs)
+
+    monkeypatch.setattr(outbox, "publish_pending", flaky_publish_pending)
+    create_order(client)
+
+    def factory():
+        connections.append(1)
+        return publisher
+
+    relay = OutboxRelay(SessionLocal, factory, poll_seconds=0.05)
+    relay.start()
+    try:
+        assert wait_until(lambda: len(publisher.published) == 1, timeout=4)
+    finally:
+        relay.stop()
+    assert len(connections) == 1
+
+
 def test_relay_stops_promptly(client):
     relay = OutboxRelay(SessionLocal, FakePublisher, poll_seconds=60)
     relay.start()

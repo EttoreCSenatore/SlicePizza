@@ -77,7 +77,9 @@ def main():
 
     # The relay declares the exchange when it connects.
     wait_for("the API to declare the exchange", exchange_exists)
-    management("PUT", f"/queues/%2F/{QUEUE}", {"durable": False, "auto_delete": False})
+    # Durable: RabbitMQ 4.x refuses transient non-exclusive queues
+    # (deprecated feature transient_nonexcl_queues). Deleted at the end.
+    management("PUT", f"/queues/%2F/{QUEUE}", {"durable": True, "auto_delete": False})
     management("POST", f"/bindings/%2F/e/{EXCHANGE}/q/{QUEUE}", {"routing_key": "order.#"})
     print(f"Bound queue {QUEUE} to {EXCHANGE} with order.#")
 
