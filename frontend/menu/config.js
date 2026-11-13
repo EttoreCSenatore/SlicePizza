@@ -5,8 +5,9 @@
 // browser never calls another origin and the API needs no CORS (ADR 0003).
 //
 // To point the site at an API on another origin instead, put its full address
-// here (e.g. "http://localhost:8000") and allow this site's origin in the
-// API's CORS_ORIGINS.
+// here (e.g. "http://localhost:8000"), set EXTRA_CONNECT_SRC to that origin on
+// the web container (the page's Content-Security-Policy blocks other origins
+// otherwise) and allow this site's origin in the API's CORS_ORIGINS.
 window.SLICEPIZZA_CONFIG = {
   apiUrl: "/api",
 };

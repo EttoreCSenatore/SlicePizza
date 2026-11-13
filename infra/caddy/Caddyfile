@@ -9,15 +9,28 @@
 # for the domain and forwards plain HTTP to this container. Caddy therefore
 # only listens on :8080 and does not try to get certificates itself.
 #
-# Two settings come from the environment:
-#   API_UPSTREAM  where the API listens, as host:port   (default api:8000)
-#   SITE_ROOT     folder with the site's files          (default /srv)
+# Settings from the environment:
+#   API_UPSTREAM       where the API listens, as host:port   (default api:8000)
+#   SITE_ROOT          folder with the site's files          (default /srv)
+#   EXTRA_CONNECT_SRC  other origins the page may call, space-separated
+#                      (default none: the page only calls its own /api).
+#                      Needed only if config.js points at an API elsewhere.
 {
 	# No admin endpoint, no certificates, nothing written to disk:
 	# the container can run as an unprivileged user.
 	admin off
 	auto_https off
 	persist_config off
+
+	servers {
+		# Requests arrive through the server's proxy (Traefik, in Dokploy) or
+		# Docker's port forwarding, both from private addresses. Trusting them
+		# keeps the X-Forwarded-For and X-Forwarded-Proto they send, so the
+		# access log and the API see the customer's IP and "https", not the
+		# proxy's IP and "http". Nothing outside the server reaches :8080.
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For
+	}
 }
 
 :8080 {
@@ -50,7 +63,7 @@
 			Cache-Control "no-cache"
 			# Only this site's own files, plus the fonts from Google Fonts.
 			# The swagger page at /api/docs is not covered (different handle).
-			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' {$EXTRA_CONNECT_SRC}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		}
 	}
 }

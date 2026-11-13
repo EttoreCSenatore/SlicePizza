@@ -14,7 +14,8 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
                                                                 └─ /api/*   ► api:8000 ──► db:5432
 ```
 
-- On a Pull Request, the [API image](../.github/workflows/api-image.yml) and [web image](../.github/workflows/web-image.yml) workflows only check that their image builds. Nothing is published. Each one runs only when its files change (`api/` for the API; `frontend/menu/` and `infra/caddy/` for web).
+- On a Pull Request, the [API image](../.github/workflows/api-image.yml) and [web image](../.github/workflows/web-image.yml) workflows only check that their image builds. Nothing is published. Each one runs only when its files change (`api/` for the API; `frontend/menu/` and `infra/caddy/` for web). Both use the same steps, in [build-image.yml](../.github/workflows/build-image.yml).
+- The web image is also rebuilt and published every Monday, so the Alpine security fixes that the official Caddy image gets under the same tag reach the server. New Caddy versions come from Dependabot, as Pull Requests.
 - On `main`, each publishes two tags: `latest` (what the server runs) and `sha-<commit>` (to know exactly which commit is live, or to go back to one).
 - The images belong to the `SenatoreTeam` organization, like the repository. Registry names are lowercase, hence `senatoreteam`.
 
@@ -23,7 +24,9 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | Container | Image | Public? | Settings |
 |---|---|---|---|
 | `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`) |
-| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api`, plus the database variables below |
+| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=*`, plus the database variables below |
+
+Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy. That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
 
 Both images meet the server's rules:
@@ -68,7 +71,7 @@ On first boot the API waits for Postgres to accept connections, creates the tabl
 1. After the first image of each kind is published, make the packages public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api` and `slicepizza-web` → **Package settings** → **Change visibility** → Public. (The server downloads them without a password.) Only organization owners can change it.
 2. On the server (in the project's compose in Dokploy):
    - Postgres: the `db` container and its volume (see [Database](#database)).
-   - `api`: `ghcr.io/senatoreteam/slicepizza-api:latest`, with the database variables and `UVICORN_ROOT_PATH=/api`. **No domain.**
+   - `api`: `ghcr.io/senatoreteam/slicepizza-api:latest`, with the database variables, `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=*`. **No domain.**
    - `web`: `ghcr.io/senatoreteam/slicepizza-web:latest`, on the same network as `api`, with `API_UPSTREAM` set to the API's service name and port (e.g. `api:8000`).
    - Route `slicepizza.senatore.tech` to `web` on port **8080** (`senatore.tech` and `www.senatore.tech` too, if they should keep showing the system).
    - Add the `web` image to the automatic update, like the API's.

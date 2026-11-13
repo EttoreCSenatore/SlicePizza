@@ -81,7 +81,12 @@ jobs:
       # The way customers come in: Caddy on 8080 serves the site and forwards /api to the API.
       - name: Check the site and the API through Caddy
         run: |
+          # No folder is mounted over /srv (docker-compose.yml), so these are
+          # the files inside the web image, as published.
           curl -fsS http://127.0.0.1:8080/ | grep -q "Pizzeria"
+          curl -fsS http://127.0.0.1:8080/app.js | grep -q "SLICEPIZZA_CONFIG"
+          curl -fsS http://127.0.0.1:8080/config.js | grep -q "apiUrl"
+          curl -fsSI http://127.0.0.1:8080/ | grep -qi "^content-security-policy: default-src 'self'"
           curl -fsS http://127.0.0.1:8080/api/health
           curl -fsS http://127.0.0.1:8080/api/menu > /dev/null
           # The interactive docs must load their schema through the /api prefix.

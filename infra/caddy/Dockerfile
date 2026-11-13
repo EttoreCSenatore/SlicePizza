@@ -4,7 +4,10 @@
 #   docker build -f infra/caddy/Dockerfile -t slicepizza-web .
 #
 # The root .dockerignore keeps everything else out of the build context.
-FROM caddy:2-alpine
+# A full version, so Dependabot proposes each update as a Pull Request
+# (.github/dependabot.yml). The web image workflow also rebuilds every week,
+# which picks up the Alpine fixes the official image gets under the same tag.
+FROM caddy:2.11.8-alpine
 
 # The official image gives the caddy binary the capability to bind ports below
 # 1024. This image listens on 8080 and runs with all capabilities dropped and

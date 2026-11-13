@@ -12,6 +12,7 @@
 
 const API_URL = String(window.SLICEPIZZA_CONFIG?.apiUrl || "").replace(/\/+$/, "");
 const REFRESH_MS = 10_000;
+const MAX_RETRY_MS = 60_000; // after repeated errors, retry at most this far apart
 const MAX_PIZZAS_PER_ORDER = 50; // same limit as the API (api/app/schemas.py)
 
 const STEPS = [
@@ -53,7 +54,8 @@ async function api(path, { method = "GET", body } = {}) {
   try {
     response = await fetch(`${API_URL}${path}`, options);
   } catch {
-    // Network down, wrong API address, or the API refused this site's origin (CORS).
+    // No answer at all: network down, wrong API address, blocked by the page's
+    // Content-Security-Policy (connect-src) or refused by the API's CORS.
     throw new ApiError("Couldn't reach the pizzeria. Check your connection and try again.", 0);
   }
 
@@ -85,7 +87,9 @@ function toApiError(status, data) {
     const message = general[0] || "Some details need fixing. Check the highlighted fields.";
     return new ApiError(message, status, fields);
   }
-  if (status === 503) {
+  // 503 comes from the API (database down); 502 and 504 from the web proxy
+  // (Caddy) when the API itself is down or too slow to answer.
+  if (status === 502 || status === 503 || status === 504) {
     return new ApiError("The pizzeria's system is offline for a moment. Try again in a minute.", status);
   }
   if (typeof detail === "string") return new ApiError(detail, status);
@@ -117,6 +121,8 @@ function showNotice(node, message, kind = "info") {
 const basket = new Map(); // pizza id -> quantity
 let menu = [];
 
+// Loads the menu and returns how many basket lines it had to drop because
+// their pizza left the menu or sold out.
 async function loadMenu() {
   const status = $("menu-status");
   showNotice(status, "Loading the menu…");
@@ -124,17 +130,34 @@ async function loadMenu() {
     menu = await api("/menu");
   } catch (error) {
     showNotice(status, error.message, "error");
-    status.append(" ", el("button", { class: "link", type: "button", onclick: loadMenu }, "Try again"));
-    return;
+    status.append(" ", el("button", { class: "link", type: "button", onclick: () => loadMenu() }, "Try again"));
+    return 0;
   }
+  const dropped = pruneBasket();
   if (menu.length === 0) {
     showNotice(status, "The menu is empty right now. Check back later.");
-    return;
+    renderBasket();
+    return dropped;
   }
   showNotice(status, "");
   renderMenu();
   $("order-form").hidden = false;
   $("basket").hidden = false;
+  return dropped;
+}
+
+// Removes from the basket what the customer can no longer order. Without
+// this, a pizza that left the menu stays in the basket with no button to
+// take it out, and every new order fails on it again.
+function pruneBasket() {
+  let dropped = 0;
+  for (const id of [...basket.keys()]) {
+    if (!menu.find((pizza) => pizza.id === id)?.available) {
+      basket.delete(id);
+      dropped += 1;
+    }
+  }
+  return dropped;
 }
 
 function renderMenu() {
@@ -269,8 +292,13 @@ async function placeOrder(event) {
     for (const [name, message] of fields) showFieldError(form, name, message);
     showNotice(formError, error.message, "error");
     if (fields.length) form.elements[fields[0][0]].focus();
-    // A pizza may have sold out or left the menu since the page loaded.
-    if (error.status === 404) loadMenu();
+    // 404: a pizza left the menu; 409: one sold out, since the page loaded.
+    // Reload the menu so the page shows what is really available.
+    if (error.status === 404 || error.status === 409) {
+      if (await loadMenu()) {
+        showNotice(formError, `${error.message} We took it out of your basket: check it and place the order again.`, "error");
+      }
+    }
   } finally {
     button.textContent = "Place order";
     renderBasket();
@@ -280,6 +308,13 @@ async function placeOrder(event) {
 // --- Tracking view ------------------------------------------------------------
 
 let refreshTimer = null;
+// Bumped on every route change. A request that answers after the customer
+// left its view (or opened another order) sees a different number and is
+// ignored, so it can neither draw the wrong order nor restart the polling.
+let viewGeneration = 0;
+// The order being followed while its status can still change, or null.
+let pollingId = null;
+let failedRefreshes = 0;
 
 function rememberOrder(id) {
   // Lets the customer find the order again after closing the tab. Storage can
@@ -289,27 +324,47 @@ function rememberOrder(id) {
   } catch {}
 }
 
-async function loadOrder(id) {
+function showOrderNotFound() {
+  pollingId = null;
+  $("track-body").hidden = true;
+  showNotice($("track-status"), "We couldn't find that order. Check the link you used.", "error");
+}
+
+// Asks for the order again after `delay`. A tab in the background does not
+// poll: the visibilitychange listener below refreshes it when it comes back.
+function scheduleRefresh(id, generation, delay) {
+  clearTimeout(refreshTimer);
+  pollingId = id;
+  if (!document.hidden) refreshTimer = setTimeout(() => loadOrder(id, generation), delay);
+}
+
+async function loadOrder(id, generation) {
   clearTimeout(refreshTimer);
   const status = $("track-status");
   let order;
   try {
     order = await api(`/orders/${encodeURIComponent(id)}`);
   } catch (error) {
+    if (generation !== viewGeneration) return;
     if (error.status === 404 || error.status === 422) {
-      $("track-body").hidden = true;
-      showNotice(status, "We couldn't find that order. Check the link you used.", "error");
+      showOrderNotFound();
       return;
     }
+    // Wait longer after each failure in a row: 10 s, 20 s, 40 s, then 60 s.
+    failedRefreshes += 1;
     showNotice(status, `${error.message} Retrying in a few seconds.`, "error");
-    refreshTimer = setTimeout(() => loadOrder(id), REFRESH_MS);
+    scheduleRefresh(id, generation, Math.min(REFRESH_MS * 2 ** (failedRefreshes - 1), MAX_RETRY_MS));
     return;
   }
+  if (generation !== viewGeneration) return;
 
+  failedRefreshes = 0;
   showNotice(status, "");
   renderOrder(order);
   if (order.status !== "delivered" && order.status !== "cancelled") {
-    refreshTimer = setTimeout(() => loadOrder(id), REFRESH_MS);
+    scheduleRefresh(id, generation, REFRESH_MS);
+  } else {
+    pollingId = null;
   }
 }
 
@@ -362,14 +417,27 @@ function showLastOrderLink() {
 
 function route(event) {
   clearTimeout(refreshTimer);
+  viewGeneration += 1;
+  pollingId = null;
+  failedRefreshes = 0;
   const match = location.hash.match(/^#\/order\/([^/?#]+)$/);
   $("order-view").hidden = Boolean(match);
   $("track-view").hidden = !match;
 
   if (match) {
     $("track-body").hidden = true;
-    showNotice($("track-status"), "Loading your order…");
-    loadOrder(decodeURIComponent(match[1]));
+    let id = null;
+    try {
+      id = decodeURIComponent(match[1]);
+    } catch {
+      // A cut or mangled link (e.g. "%E0%A4") is not a valid order id.
+    }
+    if (id === null) {
+      showOrderNotFound();
+    } else {
+      showNotice($("track-status"), "Loading your order…");
+      loadOrder(id, viewGeneration);
+    }
   } else {
     showLastOrderLink();
     if (menu.length === 0) loadMenu();
@@ -381,6 +449,13 @@ function route(event) {
     window.scrollTo(0, 0);
   }
 }
+
+// Stop polling while the tab is in the background; refresh as soon as the
+// customer comes back to it.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) clearTimeout(refreshTimer);
+  else if (pollingId) loadOrder(pollingId, viewGeneration);
+});
 
 $("order-form").addEventListener("submit", placeOrder);
 window.addEventListener("hashchange", route);

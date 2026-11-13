@@ -23,7 +23,9 @@ What it does:
 1. Loads the menu from `GET /menu`.
 2. The customer picks quantities and fills in name, phone and address.
 3. **Place order** sends `POST /orders`, then opens `#/order/<id>`.
-4. The order page calls `GET /orders/<id>` every 10 seconds until the order is delivered or cancelled. The last order is remembered in the browser, so the customer can find it again from the menu.
+4. The order page calls `GET /orders/<id>` every 10 seconds until the order is delivered or cancelled, and pauses while the tab is in the background. After an error it retries further apart each time (up to once a minute). The last order is remembered in the browser, so the customer can find it again from the menu.
+
+If an order fails because a pizza left the menu (404) or sold out (409), the page reloads the menu and takes that pizza out of the basket.
 
 The page is a single file with two views selected by the URL hash, so any static host can serve it: no server-side routing needed.
 
@@ -35,7 +37,15 @@ With the rest of the stack, from the repository root:
 docker compose up --build
 ```
 
-Open <http://localhost:8080>. The `web` service is the production image ([`infra/caddy/`](../infra/caddy/)): Caddy serves `frontend/menu/` and forwards `/api/*` to the API. Compose also mounts the folder into the container, so you can edit a file and just reload the page.
+Open <http://localhost:8080>. The `web` service is the production image ([`infra/caddy/`](../infra/caddy/)): Caddy serves the copy of `frontend/menu/` inside the image and forwards `/api/*` to the API, so a change to the site needs `--build`.
+
+To edit the site and just reload the page, add the file that mounts your working copy over the image's:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.site-dev.yml up --build
+```
+
+Caddy runs as uid 10001, so the files must be readable by others: with a umask of 077, run `chmod -R o+rX frontend/menu` first.
 
 Without Docker, run the API with Uvicorn on port 8000 (see [api/README.md](../api/README.md#running)) and Caddy with the same Caddyfile, pointing it at your folders:
 
@@ -49,7 +59,10 @@ The site calls the API at **`/api`, on its own domain** (`config.js`). In produc
 
 Every call goes through the `api()` helper in `app.js`. It always sends **`Content-Type: application/json`** with a body, which the API requires ([issue #25](https://github.com/SenatoreTeam/SlicePizza/issues/25)), and turns the API's errors into messages for the customer.
 
-If the page says "Couldn't reach the pizzeria", open `/api/health` in the same browser: if it fails, the API is down or `web` cannot reach it (check `API_UPSTREAM`).
+When something fails, the page says which side it was:
+
+- **"The pizzeria's system is offline for a moment"**: an answer came, but it was 502, 503 or 504. Either the API is down or `web` cannot reach it (Caddy answers 502: check `API_UPSTREAM`), or the API is up without its database (503). Open `/api/health` in the same browser to tell which.
+- **"Couldn't reach the pizzeria"**: no answer at all. The connection is down, or the browser blocked the call: open the browser's console, where a blocked call shows as a Content-Security-Policy or CORS error.
 
 ### Pointing it at another API
 
@@ -61,4 +74,8 @@ window.SLICEPIZZA_CONFIG = {
 };
 ```
 
-To use an API on another origin (e.g. `"http://localhost:8000"`), put its full address there and add this site's origin to the API's `CORS_ORIGINS` (see [api/README.md](../api/README.md#calling-the-api-from-a-browser-cors)).
+To use an API on another origin (e.g. `"http://localhost:8000"`), three things change:
+
+1. Put its full address in `config.js`.
+2. Allow the page to call it: set `EXTRA_CONNECT_SRC` to that origin (e.g. `http://localhost:8000`) on the `web` container. Caddy adds it to the page's Content-Security-Policy (`connect-src`), which otherwise only allows the site's own origin.
+3. Add this site's origin to the API's `CORS_ORIGINS` (see [api/README.md](../api/README.md#calling-the-api-from-a-browser-cors)).

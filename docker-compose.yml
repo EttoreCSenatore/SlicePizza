@@ -40,6 +40,9 @@ services:
       # The web container serves the API under /api (see infra/caddy/Caddyfile).
       # This tells the API, so its interactive docs work at /api/docs.
       UVICORN_ROOT_PATH: /api
+      # Trust the X-Forwarded-For/-Proto headers Caddy sends, so redirects keep
+      # "https" and the client IP is the customer's. Port 8000 is not public.
+      UVICORN_FORWARDED_ALLOW_IPS: "*"
     # Same restrictions as on the server (docs/DEPLOY.md).
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -62,7 +65,9 @@ services:
 
   # The way in: Caddy serves the menu site on http://localhost:8080 and
   # forwards http://localhost:8080/api/* to the API. The same image runs on
-  # the server (infra/caddy/Dockerfile, ADR 0003).
+  # the server (infra/caddy/Dockerfile, ADR 0003), with the site files that
+  # are inside it, so CI tests what gets published. To edit the site and just
+  # reload the page, add docker-compose.site-dev.yml (see that file).
   web:
     build:
       context: .
@@ -72,10 +77,6 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       API_UPSTREAM: api:8000
-    volumes:
-      # The image already contains the site; mounting the folder on top lets
-      # you edit the files and just reload the page. Read-only.
-      - ./frontend/menu:/srv:ro
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     depends_on:

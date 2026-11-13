@@ -60,6 +60,19 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # Base image of infra/caddy/Dockerfile (caddy:*-alpine): the public web container.
+  - package-ecosystem: docker
+    directory: /infra/caddy
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(deps)"
+
   # Images in docker-compose.yml (postgres).
   - package-ecosystem: docker-compose
     directory: /
