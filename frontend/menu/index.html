@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order pizza | Zé's Pizzeria</title>
+  <meta name="description" content="Order pizza from Zé's Pizzeria for delivery.">
+  <meta name="theme-color" content="#1E5B3F">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Young+Serif&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="wrap">
+      <a class="brand" href="#/">Zé's Pizzeria</a>
+      <p class="tagline">Wood-fired pizza, delivered hot.</p>
+    </div>
+  </header>
+
+  <main class="wrap" id="main" tabindex="-1">
+    <!-- Order view: the menu, the basket and the delivery form. -->
+    <section id="order-view" aria-labelledby="menu-title">
+      <h1 id="menu-title" class="section-title">Menu</h1>
+      <p class="hint">Pick your pizzas, then tell us where to deliver.</p>
+      <p id="last-order" class="hint" hidden><a class="link" href="#/">Track your last order</a></p>
+
+      <div id="menu-status" class="notice" role="status" hidden></div>
+      <ul id="menu" class="menu" aria-describedby="menu-title"></ul>
+
+      <form id="order-form" class="order-form" novalidate hidden>
+        <h2 class="section-title">Delivery</h2>
+
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" name="name" autocomplete="name" maxlength="120" required>
+        </div>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="30" required
+                 placeholder="+55 11 98888-7777">
+        </div>
+        <div class="field">
+          <label for="address">Delivery address</label>
+          <textarea id="address" name="address" autocomplete="street-address" maxlength="255" rows="2" required
+                    placeholder="Street, number, apartment, neighbourhood"></textarea>
+        </div>
+
+        <div id="form-error" class="notice notice-error" role="alert" hidden></div>
+      </form>
+
+      <!-- Outside the form so it stays on screen while scrolling the menu. -->
+      <div id="basket" class="basket" hidden>
+        <p class="basket-summary" aria-live="polite"><span id="basket-count">No pizzas yet</span><span id="basket-total" class="price"></span></p>
+        <button id="place-order" class="button" type="submit" form="order-form" disabled>Place order</button>
+      </div>
+    </section>
+
+    <!-- Tracking view: one order and its status, refreshed every few seconds. -->
+    <section id="track-view" aria-labelledby="track-title" hidden>
+      <h1 id="track-title" class="section-title">Your order</h1>
+      <div id="track-status" class="notice" role="status" hidden></div>
+      <div id="track-body" hidden>
+        <p class="order-ref">Order <span id="order-id"></span></p>
+        <ol id="steps" class="steps"></ol>
+        <p id="cancelled" class="notice notice-error" hidden>This order was cancelled. Call the pizzeria if you didn't expect this.</p>
+
+        <h2 class="section-title small">What you ordered</h2>
+        <ul id="order-items" class="receipt"></ul>
+        <p class="receipt-total"><span>Total</span><span id="order-total" class="price"></span></p>
+        <p class="deliver-to">Delivering to <span id="order-address"></span></p>
+      </div>
+      <p><a href="#/" class="link">Order something else</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>Zé's Pizzeria is a fictional pizzeria from <a class="link" href="https://github.com/SenatoreTeam/SlicePizza">SlicePizza</a>, a DevOps learning project.</p>
+    </div>
+  </footer>
+</body>
+</html>

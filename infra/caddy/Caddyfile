@@ -1,0 +1,56 @@
+# The "web" container: the one door into SlicePizza.
+#
+#   https://slicepizza.senatore.tech/          -> the menu site (static files)
+#   https://slicepizza.senatore.tech/api/...   -> the Orders API (/api is removed)
+#
+# Site and API share one origin, so the browser needs no CORS (see ADR 0003).
+#
+# HTTPS: in production the server's own proxy (Dokploy) holds the certificate
+# for the domain and forwards plain HTTP to this container. Caddy therefore
+# only listens on :8080 and does not try to get certificates itself.
+#
+# Two settings come from the environment:
+#   API_UPSTREAM  where the API listens, as host:port   (default api:8000)
+#   SITE_ROOT     folder with the site's files          (default /srv)
+{
+	# No admin endpoint, no certificates, nothing written to disk:
+	# the container can run as an unprivileged user.
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	encode zstd gzip
+
+	# One access log line per request, on stdout (Phase 5 collects it).
+	log
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# /api/menu reaches the API as /menu. The API is started with
+	# UVICORN_ROOT_PATH=/api, so the links it generates (the interactive docs
+	# at /api/docs) include the prefix.
+	handle_path /api/* {
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+
+	handle {
+		root * {$SITE_ROOT:/srv}
+		file_server
+
+		header {
+			# Every deploy can change index.html, app.js and config.js. The
+			# browser keeps them but asks first (cheap: 304 Not Modified).
+			Cache-Control "no-cache"
+			# Only this site's own files, plus the fonts from Google Fonts.
+			# The swagger page at /api/docs is not covered (different handle).
+			Content-Security-Policy "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		}
+	}
+}

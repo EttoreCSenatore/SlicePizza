@@ -1,0 +1,489 @@
+/* Zé's Pizzeria menu site.
+   Basil green carries the brand; tomato red is kept for prices and the one
+   action that matters (placing the order). The menu reads like a printed
+   menu card: name, dotted leader, price. */
+
+:root {
+  --basil: #1e5b3f;
+  --basil-dark: #164530;
+  --tomato: #c8321e;
+  --tomato-dark: #a52714;
+  --ink: #1b2420;
+  --muted: #5d6b63;
+  --paper: #ffffff;
+  --leaf: #f2f5f1;
+  --line: #d5ddd6;
+  --error-bg: #fbeceb;
+
+  --serif: "Young Serif", Georgia, "Times New Roman", serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.6rem;
+  --step-3: 2.4rem;
+
+  --radius: 6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--leaf);
+  color: var(--ink);
+  font: 400 var(--step-0) / 1.55 var(--sans);
+}
+
+.wrap {
+  width: min(100% - 2.5rem, 40rem);
+  margin-inline: auto;
+}
+
+main.wrap {
+  background: var(--paper);
+  padding: 2rem clamp(1.25rem, 5vw, 2.5rem) 2.5rem;
+  margin-top: -1.5rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  min-height: 60vh;
+  outline: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--tomato);
+  outline-offset: 2px;
+}
+
+/* --- Masthead -------------------------------------------------------------- */
+
+.masthead {
+  background: var(--basil);
+  color: var(--paper);
+  padding: 2.25rem 0 3.25rem;
+}
+
+.brand {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+  font: 400 var(--step-3) / 1.05 var(--serif);
+  letter-spacing: -0.01em;
+}
+
+.tagline {
+  margin: 0.4rem 0 0;
+  color: #cfe0d5;
+}
+
+/* --- Headings and notices ------------------------------------------------ */
+
+.section-title {
+  margin: 0 0 0.25rem;
+  font: 400 var(--step-2) / 1.2 var(--serif);
+}
+
+.section-title.small {
+  margin-top: 2rem;
+  font-size: var(--step-1);
+}
+
+.hint {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.notice {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--leaf);
+}
+
+.notice-error {
+  background: var(--error-bg);
+  color: var(--tomato-dark);
+}
+
+.link {
+  color: var(--basil);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.price {
+  color: var(--tomato-dark);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Menu ------------------------------------------------------------------ */
+
+.menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dish {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 1.25rem;
+  align-items: center;
+  padding: 1.1rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.dish-line {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.dish-name {
+  margin: 0;
+  font: 400 var(--step-1) / 1.25 var(--serif);
+}
+
+/* The dotted leader that runs from the pizza's name to its price. */
+.leader {
+  flex: 1;
+  min-width: 1.5rem;
+  border-bottom: 2px dotted #aebbb2;
+  transform: translateY(-0.3em);
+}
+
+.dish-description {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+
+.dish.is-chosen .dish-name {
+  color: var(--basil);
+}
+
+.dish.is-unavailable .dish-name,
+.dish.is-unavailable .price {
+  color: var(--muted);
+}
+
+.dish.is-unavailable .price {
+  text-decoration: line-through;
+}
+
+.sold-out {
+  margin: 0.2rem 0 0;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.step {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--basil);
+  font: 500 1.35rem / 1 var(--sans);
+  cursor: pointer;
+}
+
+.step:hover:not(:disabled) {
+  background: var(--leaf);
+}
+
+.step:disabled {
+  color: #b9c3bc;
+  cursor: default;
+}
+
+.qty {
+  min-width: 1.75rem;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Delivery form ----------------------------------------------------- */
+
+.order-form {
+  margin-top: 2.5rem;
+}
+
+.field {
+  margin-top: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 500;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #b3c0b7;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: inherit;
+  font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #8a978f;
+}
+
+.field.has-error input,
+.field.has-error textarea {
+  border-color: var(--tomato);
+}
+
+.field-error {
+  margin: 0.3rem 0 0;
+  color: var(--tomato-dark);
+  font-size: var(--step--1);
+}
+
+/* The basket sticks to the bottom of the screen while the customer scrolls
+   the menu, so the total and the button are always in reach. */
+.basket {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.75rem calc(-1 * clamp(1.25rem, 5vw, 2.5rem)) -2.5rem;
+  padding: 1rem clamp(1.25rem, 5vw, 2.5rem);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.basket-summary {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.basket-summary .price {
+  font-size: var(--step-1);
+}
+
+.button {
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--tomato);
+  color: var(--paper);
+  font: 600 var(--step-0) / 1 var(--sans);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--tomato-dark);
+}
+
+.button:disabled {
+  background: #c9d1cb;
+  color: #6c7a71;
+  cursor: default;
+}
+
+/* --- Tracking ------------------------------------------------------------ */
+
+.order-ref {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+.order-ref span {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The status is a real sequence, so the steps are numbered. */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step-item {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 1.4rem 3rem;
+  min-height: 2.2rem;
+}
+
+.step-item::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -0.1rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: var(--step--1);
+}
+
+/* The line connecting one step to the next. */
+.step-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: calc(1rem - 1px);
+  top: 2rem;
+  bottom: 0.1rem;
+  width: 2px;
+  background: var(--line);
+}
+
+.step-label {
+  display: block;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.step-detail {
+  display: block;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+.step-item.is-done::before {
+  content: "✓";
+  background: var(--basil);
+  border-color: var(--basil);
+  color: var(--paper);
+}
+
+.step-item.is-done::after {
+  background: var(--basil);
+}
+
+.step-item.is-done .step-label {
+  color: var(--ink);
+}
+
+.step-item.is-current::before {
+  border-color: var(--tomato);
+  color: var(--tomato);
+}
+
+.step-item.is-current .step-label {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .step-item.is-current::before {
+    animation: pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 6px rgb(200 50 30 / 0.15);
+  }
+}
+
+.receipt {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.receipt li,
+.receipt-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+}
+
+.receipt li {
+  border-bottom: 1px dashed var(--line);
+}
+
+.receipt-total {
+  margin: 0;
+  font-weight: 600;
+}
+
+.deliver-to {
+  margin: 1rem 0 2rem;
+  color: var(--muted);
+}
+
+.deliver-to span {
+  color: var(--ink);
+}
+
+/* --- Footer ---------------------------------------------------------------- */
+
+.footer {
+  padding: 1.5rem 0 2.5rem;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+
+.footer p {
+  margin: 0;
+}
+
+@media (max-width: 30rem) {
+  .brand {
+    font-size: var(--step-2);
+  }
+
+  main.wrap {
+    width: 100%;
+    border-radius: 0;
+  }
+}
