@@ -53,6 +53,8 @@ Why the outbox, instead of publishing right after saving? Saving to Postgres and
 | `order.created` | An order is placed | `order` with `status: "received"`, `previous_status: null` |
 | `order.status_changed` | The status changes (not on a no-op or a refused change) | `order` with the new `status` and the `previous_status` |
 
+Every event also carries `notify.telegram_chat_ids`: the Telegram chats that follow the order ([ADR 0006](adr/0006-customer-telegram-opt-in.md)).
+
 All go to the `slicepizza.events` topic exchange, as persistent JSON with `message_id` = `event_id`. The format is documented in [`api/app/events.py`](../api/app/events.py). Consumers bind their own durable queue (e.g. `order.#`) and must ignore duplicates by `message_id`.
 
 ## Order status

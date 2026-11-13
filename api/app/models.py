@@ -13,6 +13,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     func,
     text,
 )
@@ -163,3 +164,28 @@ class OrderEvent(Base):
             sqlite_where=text("published_at IS NULL"),
         ),
     )
+
+
+class TelegramSubscription(Base):
+    """A Telegram chat that asked for updates about one order (ADR 0006).
+
+    The worker creates it when a customer taps "Follow on Telegram" and starts
+    the bot. Every later event about the order carries the subscribed chat
+    ids, so the worker can message them without a database of its own.
+    """
+
+    __tablename__ = "telegram_subscriptions"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True
+    )
+    order_id: Mapped[str] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Telegram chat ids can exceed 32 bits.
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (UniqueConstraint("order_id", "chat_id", name="uq_telegram_subscription"),)

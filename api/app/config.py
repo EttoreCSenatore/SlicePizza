@@ -201,6 +201,28 @@ def rabbitmq_from_env() -> RabbitMQSettings | None:
     )
 
 
+# A shared secret must not be guessable: 32 characters from a password
+# generator or `openssl rand -hex 32` (64) is plenty.
+MIN_INTERNAL_TOKEN_LENGTH = 32
+
+
+def internal_api_token_from_env() -> str | None:
+    """The secret the worker sends to the /internal routes (ADR 0006).
+
+    Unset or empty: those routes are off and answer 404, as if they did not
+    exist. The value never appears in an error message.
+    """
+    token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
+    if not token:
+        return None
+    if len(token) < MIN_INTERNAL_TOKEN_LENGTH:
+        raise ConfigError(
+            f"INTERNAL_API_TOKEN must be at least {MIN_INTERNAL_TOKEN_LENGTH} characters "
+            "long; generate one with `openssl rand -hex 32`."
+        )
+    return token
+
+
 class Settings:
     """Runtime configuration, resolved once at import time."""
 
@@ -208,6 +230,7 @@ class Settings:
         self.database_url: URL = database_url_from_env()
         self.cors_origins: list[str] = cors_origins_from_env()
         self.rabbitmq: RabbitMQSettings | None = rabbitmq_from_env()
+        self.internal_api_token: str | None = internal_api_token_from_env()
 
 
 settings = Settings()

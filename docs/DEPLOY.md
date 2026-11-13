@@ -24,7 +24,7 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | Container | Image | Public? | Settings |
 |---|---|---|---|
 | `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`) |
-| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below |
+| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below. `INTERNAL_API_TOKEN` for the worker's routes ([ADR 0006](adr/0006-customer-telegram-opt-in.md)) |
 
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
 | `rabbitmq` | `rabbitmq:4.3.4-management-alpine` | No: only `api` and `worker` reach it | See [RabbitMQ](#rabbitmq) |

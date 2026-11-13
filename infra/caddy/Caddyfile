@@ -46,6 +46,14 @@
 		-Server
 	}
 
+	# The API's /internal routes are for the notification worker only, on the
+	# project network (ADR 0006): never reachable from the internet. The API
+	# also requires a token there; this keeps them out of reach either way.
+	@internal path /api/internal /api/internal/*
+	handle @internal {
+		respond "Not Found" 404
+	}
+
 	# /api/menu reaches the API as /menu. The API is started with
 	# UVICORN_ROOT_PATH=/api, so the links it generates (the interactive docs
 	# at /api/docs) include the prefix.
