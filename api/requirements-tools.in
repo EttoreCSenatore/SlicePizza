@@ -1,0 +1,5 @@
+# The tool that generates the lock files (scripts/compile-requirements.sh).
+# Edit this file, never requirements-tools.txt (see "Dependencies" in README.md).
+# Locked with hashes like the API's own dependencies, so the program that writes
+# the hashes going to production is itself hash-checked.
+pip-tools==7.6.2

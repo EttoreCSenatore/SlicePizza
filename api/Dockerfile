@@ -1,3 +1,5 @@
+# Keep the version in api/.python-version: the lock files are resolved for it,
+# and CI fails if the two differ.
 FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

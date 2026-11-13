@@ -11,11 +11,16 @@
 version: 2
 
 updates:
-  # Orders API: the ranges in api/requirements.in and api/requirements-dev.in, and the lock
-  # files generated from them (requirements.txt, requirements-dev.txt). Dependabot recognizes
-  # pip-compile files: its PRs change the pinned version and hashes in the lock files.
+  # Orders API: the ranges in api/requirements*.in and the lock files generated from them
+  # (requirements*.txt). Dependabot recognizes pip-compile files: its PRs change the pinned
+  # versions and hashes in the lock files.
   - package-ecosystem: pip
     directory: /api
+    # Version updates cover only the packages named in the .in files by default. With lock
+    # files, the indirect ones (starlette, pydantic, anyio, certifi...) would then stay on the
+    # locked version forever, so ask for all of them.
+    allow:
+      - dependency-type: all
     schedule:
       interval: weekly
       day: monday
