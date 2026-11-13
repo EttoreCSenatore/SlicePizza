@@ -1,13 +1,16 @@
 """The worker's /internal routes and the chat ids in events (ADR 0006)."""
 
 import os
+import threading
+import time
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app import internal
 from app.config import ConfigError, internal_api_token_from_env, settings
+from app.database import SessionLocal, engine
 from app.models import OrderEvent, TelegramSubscription
 
 TOKEN = os.environ["INTERNAL_API_TOKEN"]  # set by conftest.py
@@ -142,6 +145,39 @@ def test_unsubscribe_removes_the_chat_from_every_order(client, db):
 
 def test_unsubscribe_needs_the_token(client):
     assert client.delete(f"/internal/telegram-subscriptions/{CHAT}").status_code == 401
+
+
+@pytest.mark.skipif(engine.dialect.name != "postgresql", reason="row locks need Postgres")
+def test_subscribing_waits_for_a_status_change_in_progress(client):
+    """Linking locks the order row like PATCH does (ADR 0006), so a link and a
+    status change never interleave."""
+    order_id = new_order(client)
+    results = {}
+
+    with SessionLocal() as status_change:
+        # A status change in progress holds the order row. FOR NO KEY UPDATE
+        # (what an UPDATE of the status takes) and not FOR UPDATE: inserting
+        # the subscription checks its foreign key with a KEY SHARE lock, which
+        # FOR UPDATE would also block, so the test would pass even without the
+        # route's own lock. FOR NO KEY UPDATE only blocks the route's FOR UPDATE.
+        status_change.execute(
+            text("SELECT id FROM orders WHERE id = :id FOR NO KEY UPDATE"), {"id": order_id}
+        )
+
+        def link():
+            results["response"] = subscribe(client, order_id)
+            results["at"] = time.monotonic()
+
+        thread = threading.Thread(target=link)
+        thread.start()
+        time.sleep(0.5)
+        assert "response" not in results  # still waiting for the lock
+        released = time.monotonic()
+        status_change.rollback()  # releases the row lock
+
+    thread.join(5)
+    assert results["response"].status_code == 200
+    assert results["at"] >= released
 
 
 # --- Chat ids in events -----------------------------------------------------------

@@ -15,6 +15,7 @@ They are left out of the OpenAPI schema (/docs).
 
 import hmac
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
 from pydantic import BaseModel
@@ -60,13 +61,13 @@ class SubscriptionOut(BaseModel):
     created: bool
 
 
-ChatId = Path(ge=MIN_CHAT_ID, le=MAX_CHAT_ID)
+ChatId = Annotated[int, Path(ge=MIN_CHAT_ID, le=MAX_CHAT_ID)]
 
 
 @router.put("/orders/{order_id}/telegram-subscriptions/{chat_id}", response_model=SubscriptionOut)
 def subscribe(
     order_id: uuid.UUID,
-    chat_id: int = ChatId,
+    chat_id: ChatId,
     db: Session = Depends(get_db),
 ) -> SubscriptionOut:
     """Make a Telegram chat follow an order. Returns the order's current status.
@@ -106,7 +107,7 @@ class UnsubscribeOut(BaseModel):
 
 
 @router.delete("/telegram-subscriptions/{chat_id}", response_model=UnsubscribeOut)
-def unsubscribe_chat(chat_id: int = ChatId, db: Session = Depends(get_db)) -> UnsubscribeOut:
+def unsubscribe_chat(chat_id: ChatId, db: Session = Depends(get_db)) -> UnsubscribeOut:
     """Stop all updates to a chat (the customer sent /stop to the bot)."""
     result = db.execute(delete(TelegramSubscription).where(TelegramSubscription.chat_id == chat_id))
     db.commit()
