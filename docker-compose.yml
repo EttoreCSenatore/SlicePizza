@@ -39,6 +39,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       # Optional: origins allowed to call the API from a browser (see .env.example).
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # The web container serves the API under /api (see infra/caddy/Caddyfile).
+      # This tells the API, so its interactive docs work at /api/docs.
+      UVICORN_ROOT_PATH: /api
+      # Trust the X-Forwarded-For/-Proto headers Caddy sends, so redirects keep
+      # "https" and the client IP is the customer's. Only from private (Docker
+      # network) addresses: if port 8000 were ever exposed, a request from the
+      # internet could not fake its IP this way.
+      UVICORN_FORWARDED_ALLOW_IPS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    # Same restrictions as on the server (docs/DEPLOY.md).
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +66,32 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # The way in: Caddy serves the menu site on http://localhost:8080 and
+  # forwards http://localhost:8080/api/* to the API. The same image runs on
+  # the server (infra/caddy/Dockerfile, ADR 0003), with the site files that
+  # are inside it, so CI tests what gets published. To edit the site and just
+  # reload the page, add docker-compose.site-dev.yml (see that file).
+  web:
+    build:
+      context: .
+      dockerfile: infra/caddy/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      API_UPSTREAM: api:8000
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # busybox wget is in the alpine image; /api/health checks the whole path.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:

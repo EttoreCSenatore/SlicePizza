@@ -39,10 +39,12 @@ Check the boxes as you make progress.
 - [ ] Set up SSH access with a key (no password)
 - [ ] Open only ports 22, 80 and 443 in the firewall
 - [ ] Install Docker on the virtual machine
-- [ ] Build the menu website in `frontend/` (plain HTML + JS)
+- [x] Build the menu website in `frontend/` (plain HTML + JS)
 - [ ] Host the static site on a CDN (Cloudflare Pages or S3 + CloudFront)
 - [ ] DNS: `www` (CNAME to the CDN), `api` and `admin` (A record to the virtual machine)
 - [ ] Caddy as reverse proxy, with automatic HTTPS
+
+> **How SlicePizza did it:** the system lives at `slicepizza.senatore.tech` on a shared server that already has a domain, Docker and an HTTPS proxy (Dokploy, see [DEPLOY.md](DEPLOY.md)). Instead of a CDN plus `api` and `admin` subdomains, a Caddy container serves the site at `/` and the API at `/api` on that one domain ([ADR 0003](adr/0003-one-domain-caddy-in-front.md)). The server's proxy keeps the HTTPS part.
 
 **Done when:** you place an order from your phone, over HTTPS, through the internet.
 

@@ -17,3 +17,4 @@ An accepted ADR is not edited. If the decision changes, write a new ADR and mark
 |---|---|---|
 | [0001](0001-monorepo.md) | Use a single repository (monorepo) | Accepted |
 | [0002](0002-sqlalchemy-and-schema-creation.md) | SQLAlchemy ORM and schema creation on startup | Accepted |
+| [0003](0003-one-domain-caddy-in-front.md) | One domain for the site and the API, with Caddy in front | Accepted |

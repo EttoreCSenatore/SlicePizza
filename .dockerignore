@@ -1,0 +1,6 @@
+# Build context for images built from the repository root (infra/caddy/Dockerfile).
+# Send only what they need: everything else (docs-site/node_modules, .git,
+# .env...) stays out. The API image uses api/ as its context instead.
+*
+!frontend/menu
+!infra/caddy

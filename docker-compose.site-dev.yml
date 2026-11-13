@@ -1,0 +1,15 @@
+# Optional, for working on the menu site: serves frontend/menu/ straight from
+# your working copy instead of the copy inside the web image, so you can edit
+# a file and just reload the page.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.site-dev.yml up --build
+#
+# CI and the server never use this file: they test and run the image as built.
+#
+# Caddy runs as uid 10001, so the files must be readable by others (if your
+# umask is 077, run `chmod -R o+rX frontend/menu`). ":z" lets the container read
+# them on hosts with SELinux (Fedora, RHEL); elsewhere it is ignored.
+services:
+  web:
+    volumes:
+      - ./frontend/menu:/srv:ro,z

@@ -11,18 +11,17 @@ The system starts small and grows in **phases**. In each phase, the "pizzeria ow
 ## Architecture (end goal)
 
 ```
-Customer ──► www.yourdomain.com ──► Menu website (static, CDN)
-                                          │ calls the API
-                                          ▼
-         api.yourdomain.com ──► Proxy (Caddy) ──► Orders API ──► Postgres
-                                                      │      └────► Redis (cache)
-                                                      ▼
-                                               Queue (RabbitMQ)
-                                                      │
-                                                      ▼
-                                             Notification worker ──► Telegram
+                                       ┌─ /       ► Menu website (static files)
+Customer ──► slicepizza.senatore.tech ─┤
+             (HTTPS at the server's    └─ /api/*  ► Orders API ──► Postgres
+              proxy, then Caddy)                       │      └────► Redis (cache)
+                                                       ▼
+                                                Queue (RabbitMQ)
+                                                       │
+                                                       ▼
+                                              Notification worker ──► Telegram
 
-Kitchen ──► admin.yourdomain.com ──► Kitchen dashboard ──► API
+Kitchen ──► Kitchen dashboard (Phase 3, address to be decided) ──► API
 ```
 
 Details for each component in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -80,7 +79,7 @@ SlicePizza/
    ```bash
    cp .env.example .env
    ```
-2. Build and start the API and Postgres:
+2. Build and start the API, Postgres and the menu website:
    ```bash
    docker compose up --build
    ```
@@ -110,7 +109,9 @@ SlicePizza/
      }'
    ```
 
-Interactive API docs: <http://localhost:8000/docs>.
+Open the menu website at <http://localhost:8080>: pick pizzas, place an order and follow its status (see [frontend/README.md](frontend/README.md)). Port 8080 is Caddy, the same `web` container that runs in production: it serves the site and forwards `/api/*` to the API, so `http://localhost:8080/api/menu` is the same as `http://localhost:8000/menu` ([ADR 0003](docs/adr/0003-one-domain-caddy-in-front.md)).
+
+Interactive API docs: <http://localhost:8080/api/docs>.
 
 The database lives in the `slicepizza_pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
 
@@ -145,7 +146,7 @@ The site is served at http://localhost:3000/. The published version is at https:
 | Phase | Zé's request | Status |
 |---|---|---|
 | 1 | "I want to see it running on your computer" | ✅ Done |
-| 2 | "I want the site live on my own domain" | ⏳ |
+| 2 | "I want the site live on my own domain" | 🚧 In progress |
 | 3 | "Customers want to know when their pizza is on the way" | ⏳ |
 | 4 | "Every time you change something, something breaks" | ⏳ |
 | 5 | "The site went down Friday night and nobody noticed" | ⏳ |

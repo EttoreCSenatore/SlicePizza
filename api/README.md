@@ -12,7 +12,9 @@ A **Python + FastAPI** API that serves the menu and receives the pizzeria's orde
 | GET | `/orders/{id}` | Gets an order |
 | PATCH | `/orders/{id}/status` | Changes an order's status |
 
-Interactive docs are available at `http://localhost:8000/docs`.
+Behind the `web` container (Caddy, see [ADR 0003](../docs/adr/0003-one-domain-caddy-in-front.md)) every route is also served under **`/api`**: `https://slicepizza.senatore.tech/api/menu`, or `http://localhost:8080/api/menu` with Docker Compose. Caddy removes the prefix, so the API itself keeps the routes above.
+
+Interactive docs: `http://localhost:8080/api/docs` with Docker Compose. The API runs there with `UVICORN_ROOT_PATH=/api`, so the docs page asks for its schema at `/api/openapi.json`; that is why `http://localhost:8000/docs` cannot load it. When you run Uvicorn yourself (below), without that variable, the docs are at `http://localhost:8000/docs`.
 
 ### Creating an order
 
