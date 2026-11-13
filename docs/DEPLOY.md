@@ -121,6 +121,7 @@ Only the hash goes on the server; keep the password in the team's password manag
 What happens when something is missing:
 
 - **No `KITCHEN_PASSWORD_HASH`**: `/kitchen` answers 404.
+- **A malformed `KITCHEN_PASSWORD_HASH`** (cut short when pasting, say): `/kitchen` answers 404 too, and the `web` log starts with an `ERROR: KITCHEN_PASSWORD_HASH ...` line. The rest of the site keeps working: the image checks the value before Caddy loads it ([`infra/caddy/start.sh`](../infra/caddy/start.sh)), since Caddy wouldn't start at all with it.
 - **No `KITCHEN_API_TOKEN` on `api`**: nobody can list orders or change a status (503); the board says the kitchen isn't connected.
 - **Different values on `api` and `web`**: the board loads, but says the kitchen isn't connected (the API answers 401).
 

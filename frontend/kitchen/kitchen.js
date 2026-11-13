@@ -46,6 +46,7 @@ const state = {
   ticketError: new Map(), // id -> { message, until }, shown on that ticket
   failures: 0,
   timer: null,
+  loads: 0, // counts refreshes, so only the latest one's answer is used
   drawn: "", // what the tickets on screen were drawn from (see render)
   notice: null, // { message, until }: about an order no longer on the board
 };
@@ -98,14 +99,19 @@ async function api(method, path, body) {
 
 async function refresh() {
   clearTimeout(state.timer);
+  const load = ++state.loads;
   try {
     const orders = await api("GET", "/orders");
+    // A newer refresh started meanwhile (a tap, or the tab coming back):
+    // its answer is fresher, so drop this one.
+    if (load !== state.loads) return;
     noteArrivals(orders);
     state.orders = orders;
     state.loadedAt = new Date();
     state.failures = 0;
     showProblem("");
   } catch (error) {
+    if (load !== state.loads) return;
     state.failures += 1;
     const since = state.loadedAt ? ` Showing the orders from ${clock.format(state.loadedAt)}.` : "";
     showProblem(`${error.message}${since}`);

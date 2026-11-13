@@ -19,7 +19,9 @@
 #                      (default none: no button). See config.js below.
 #   KITCHEN_USERNAME   the kitchen login's user name      (default kitchen)
 #   KITCHEN_PASSWORD_HASH  bcrypt hash of its password, from
-#                      `caddy hash-password` (default none: /kitchen is off)
+#                      `caddy hash-password`, base64-encoded or not (default
+#                      none: /kitchen is off). The image's start script turns
+#                      the kitchen off if the value is malformed (start.sh).
 #   KITCHEN_API_TOKEN  the token the API expects from the kitchen (the same
 #                      value as on the API, ADR 0007)
 #   KITCHEN_ROOT       folder with the kitchen page     (default /srv-kitchen)
@@ -87,7 +89,8 @@
 	@kitchen path /kitchen /kitchen/*
 	handle @kitchen {
 		# Asks for KITCHEN_USERNAME (default "kitchen") and the password whose
-		# bcrypt hash is KITCHEN_PASSWORD_HASH (`caddy hash-password`). The
+		# bcrypt hash is KITCHEN_PASSWORD_HASH (`caddy hash-password`, which
+		# Caddy also accepts base64-encoded). The
 		# fallback hash is of a random password nobody has; it is never used,
 		# since the block above answers 404 when the variable is empty.
 		basic_auth bcrypt "Zé's Pizzeria kitchen" {
