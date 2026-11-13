@@ -43,8 +43,10 @@ services:
       # This tells the API, so its interactive docs work at /api/docs.
       UVICORN_ROOT_PATH: /api
       # Trust the X-Forwarded-For/-Proto headers Caddy sends, so redirects keep
-      # "https" and the client IP is the customer's. Port 8000 is not public.
-      UVICORN_FORWARDED_ALLOW_IPS: "*"
+      # "https" and the client IP is the customer's. Only from private (Docker
+      # network) addresses: if port 8000 were ever exposed, a request from the
+      # internet could not fake its IP this way.
+      UVICORN_FORWARDED_ALLOW_IPS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
     # Same restrictions as on the server (docs/DEPLOY.md).
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

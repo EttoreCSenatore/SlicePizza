@@ -24,9 +24,9 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | Container | Image | Public? | Settings |
 |---|---|---|---|
 | `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`) |
-| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=*`, plus the database variables below |
+| `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below |
 
-Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy. That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
+Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy (also from private addresses only). That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
 
 Both images meet the server's rules:
@@ -71,7 +71,7 @@ On first boot the API waits for Postgres to accept connections, creates the tabl
 1. After the first image of each kind is published, make the packages public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api` and `slicepizza-web` → **Package settings** → **Change visibility** → Public. (The server downloads them without a password.) Only organization owners can change it.
 2. On the server (in the project's compose in Dokploy):
    - Postgres: the `db` container and its volume (see [Database](#database)).
-   - `api`: `ghcr.io/senatoreteam/slicepizza-api:latest`, with the database variables, `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=*`. **No domain.**
+   - `api`: `ghcr.io/senatoreteam/slicepizza-api:latest`, with the database variables, `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`. **No domain.**
    - `web`: `ghcr.io/senatoreteam/slicepizza-web:latest`, on the same network as `api`, with `API_UPSTREAM` set to the API's service name and port (e.g. `api:8000`).
    - Route `slicepizza.senatore.tech` to `web` on port **8080** (`senatore.tech` and `www.senatore.tech` too, if they should keep showing the system).
    - Add the `web` image to the automatic update, like the API's.
