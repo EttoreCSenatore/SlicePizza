@@ -8,11 +8,13 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from .config import settings
 from .database import Base, SessionLocal, engine, get_db, wait_for_database
 from .models import ALLOWED_TRANSITIONS, Order, OrderItem, OrderStatus, Pizza
 from .schemas import OrderCreate, OrderOut, OrderStatusUpdate, PizzaOut
@@ -38,6 +40,64 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+class UnhandledErrorAsJSON:
+    """Turn an unhandled exception into a JSON 500 *inside* CORSMiddleware.
+
+    Starlette answers unhandled exceptions in ServerErrorMiddleware, which sits
+    outside every middleware added here, so its 500 would carry no CORS
+    header and the browser would report a CORS error instead of the 500.
+    Added before CORSMiddleware, this one runs inside it.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def send_and_track(message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_and_track)
+        except Exception:
+            if response_started:
+                raise  # too late to send another response
+            logger.exception("Unhandled error on %s %s", scope["method"], scope["path"])
+            response = JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+            await response(scope, receive, send)
+
+
+if settings.cors_origins:
+    # Off by default: in production the site and the API share one origin
+    # (ADR 0003), so browsers need no CORS. CORS_ORIGINS is for a site served
+    # from another origin, e.g. a local `python3 -m http.server 8080` against
+    # the API on port 8000. Browsers then send an OPTIONS preflight before
+    # every POST and PATCH that carries JSON, and only the configured origins
+    # get an answer. No cookies are used, so credentials stay disabled.
+    #
+    # Middleware added last runs first: CORSMiddleware wraps
+    # UnhandledErrorAsJSON, so even a 500 carries the CORS header.
+    app.add_middleware(UnhandledErrorAsJSON)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST", "PATCH"],
+        # Starlette always allows the CORS-safelisted Accept, Accept-Language,
+        # Content-Language and Content-Type; listed here to make the intent
+        # explicit, since every POST and PATCH sends application/json.
+        allow_headers=["Content-Type"],
+        max_age=600,
+    )
 
 
 @app.exception_handler(RequestValidationError)

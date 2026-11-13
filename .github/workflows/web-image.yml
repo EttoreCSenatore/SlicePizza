@@ -1,0 +1,33 @@
+# Builds the web image: Caddy with the menu site, in front of the API (ADR 0003).
+# The steps are in build-image.yml. On a Pull Request it only checks that the image
+# builds; on main it publishes ghcr.io/senatoreteam/slicepizza-web, and the server
+# that hosts slicepizza.senatore.tech picks up the new :latest within 5 minutes
+# (see docs/DEPLOY.md).
+#
+# It also rebuilds every Monday: the official Caddy image gets Alpine security
+# fixes under the same tag, and without a rebuild they would never reach the
+# public container. (The API image does not do this: its build installs the newest
+# Python packages allowed by requirements.txt, which must come through a PR.)
+name: Web image
+
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/menu/**", "infra/caddy/**", ".dockerignore", ".github/workflows/web-image.yml", ".github/workflows/build-image.yml"]
+  pull_request:
+    paths: ["frontend/menu/**", "infra/caddy/**", ".dockerignore", ".github/workflows/web-image.yml", ".github/workflows/build-image.yml"]
+  schedule:
+    - cron: "0 9 * * 1"  # Mondays 06:00 in São Paulo
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      image: ghcr.io/senatoreteam/slicepizza-web
+      context: .
+      file: infra/caddy/Dockerfile
