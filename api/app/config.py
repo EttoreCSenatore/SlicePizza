@@ -69,6 +69,60 @@ def database_url_from_env() -> URL:
     )
 
 
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _normalize_origin(origin: str) -> str:
+    """Return the origin exactly as a browser writes it in the Origin header.
+
+    Starlette compares the header with the configured origins as plain
+    strings, so an entry that is written differently (``HTTPS://X.com``,
+    ``https://x.com:443``, ``https://bücher.de``) would never match. Instead of
+    lowercasing the raw text, the origin is rebuilt from its parts: lowercase
+    scheme and host, the host in its ASCII (punycode) form, and the port only
+    when it is not the scheme's default. Anything that is not an origin raises
+    ConfigError.
+    """
+    error = ConfigError(
+        f"CORS_ORIGINS entry {origin!r} is not an origin. Use "
+        "scheme://host[:port] with no path or trailing slash, e.g. "
+        "https://www.example.com."
+    )
+    # urlsplit returns an empty query/fragment for a bare "?" or "#", so look
+    # for the characters themselves.
+    if "?" in origin or "#" in origin:
+        raise error
+    parsed = urlsplit(origin)
+    if (
+        parsed.scheme not in _DEFAULT_PORTS
+        or not parsed.hostname
+        or parsed.path
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise error
+    try:
+        port = parsed.port
+    except ValueError:
+        raise ConfigError(f"CORS_ORIGINS entry {origin!r} has an invalid port.") from None
+    if parsed.netloc.endswith(":"):
+        # "https://a.com:" has no port; browsers never send the bare colon.
+        raise ConfigError(f"CORS_ORIGINS entry {origin!r} has an empty port.")
+
+    host = parsed.hostname  # already lowercase, without IPv6 brackets
+    if ":" in host:
+        host = f"[{host}]"  # IPv6 address
+    else:
+        try:
+            host = host.encode("idna").decode("ascii")
+        except UnicodeError:
+            raise ConfigError(f"CORS_ORIGINS entry {origin!r} has an invalid host.") from None
+
+    if port is None or port == _DEFAULT_PORTS[parsed.scheme]:
+        return f"{parsed.scheme}://{host}"
+    return f"{parsed.scheme}://{host}:{port}"
+
+
 def cors_origins_from_env() -> list[str]:
     """Read the origins allowed to call the API from a browser.
 
@@ -81,7 +135,8 @@ def cors_origins_from_env() -> list[str]:
     so only the project's own frontends may call it. An origin is a scheme,
     a host and an optional port; a path (even a trailing ``/``) would never
     match the browser's ``Origin`` header, so it is rejected instead of
-    silently failing.
+    silently failing. Each origin is rewritten the way browsers send it
+    (see _normalize_origin).
     """
     raw = os.getenv("CORS_ORIGINS") or ""
     origins: list[str] = []
@@ -93,27 +148,7 @@ def cors_origins_from_env() -> list[str]:
             raise ConfigError(
                 "CORS_ORIGINS must list the frontend's origins; '*' is not allowed."
             )
-        parsed = urlsplit(origin)
-        if (
-            parsed.scheme not in ("http", "https")
-            or not parsed.hostname
-            or parsed.path
-            or parsed.query
-            or parsed.fragment
-            or parsed.username
-            or parsed.password
-        ):
-            raise ConfigError(
-                f"CORS_ORIGINS entry {origin!r} is not an origin. Use "
-                "scheme://host[:port] with no path or trailing slash, e.g. "
-                "https://www.example.com."
-            )
-        try:
-            parsed.port  # noqa: B018 - raises ValueError on a bad port
-        except ValueError:
-            raise ConfigError(f"CORS_ORIGINS entry {origin!r} has an invalid port.") from None
-        # Browsers send the scheme and host in lowercase.
-        origin = origin.lower()
+        origin = _normalize_origin(origin)
         if origin not in origins:
             origins.append(origin)
     return origins

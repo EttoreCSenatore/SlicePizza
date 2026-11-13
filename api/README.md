@@ -57,9 +57,11 @@ CORS_ORIGINS=https://www.yourdomain.com,http://localhost:8080
 - Each entry is `scheme://host[:port]`, with **no path and no trailing slash** (`https://www.yourdomain.com/` never matches what the browser sends, so the API refuses to start with it).
 - `*` is refused: the API stores customers' names, phones and addresses, so only the project's own sites may call it.
 - Unset or empty means no browser on another domain can call the API. `curl`, scripts and other servers are not affected: CORS is enforced by browsers only.
-- Allowed methods: `GET`, `POST`, `PATCH`. Allowed request header: `Content-Type`. No cookies.
+- Each entry is rewritten the way browsers send it: lowercase, without the default port (`https://x.com:443` becomes `https://x.com`) and with a non-ASCII domain in punycode (`bücher.de` becomes `xn--bcher-kva.de`).
+- Allowed methods: `GET`, `POST`, `PATCH`. Allowed request headers: `Content-Type`, plus `Accept`, `Accept-Language` and `Content-Language`, which Starlette always allows. No cookies.
+- Error responses, including an unexpected `500`, carry the CORS header too, so the page can read the API's status and message.
 
-For example, to serve the site with `python3 -m http.server 8080` while the API runs on port 8000, start the API with `CORS_ORIGINS=http://localhost:8080`.
+For example, to serve the site with `python3 -m http.server 8080` while the API runs on port 8000, start the API with `CORS_ORIGINS=http://localhost:8080`. With Docker Compose, put the line in `.env`; `docker-compose.yml` passes it to the `api` container.
 
 ## Running
 
