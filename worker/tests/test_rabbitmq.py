@@ -190,3 +190,31 @@ def test_the_worker_marks_itself_alive(broker, tmp_path):
         assert wait_until(lambda: os.path.exists(s.heartbeat_file))
         first = os.path.getmtime(s.heartbeat_file)
         assert wait_until(lambda: os.path.getmtime(s.heartbeat_file) > first, timeout=5)
+
+
+class RateLimitedSender(FakeSender):
+    """Fails once with Telegram's 429 and a retry_after, then works."""
+
+    def __init__(self, retry_after):
+        super().__init__()
+        self.retry_after = retry_after
+        self.times = []
+
+    def send(self, chat_id, text):
+        self.times.append(time.monotonic())
+        self.attempts += 1
+        if self.attempts == 1:
+            raise TemporaryFailure("Telegram answered 429", retry_after=self.retry_after)
+        self.sent.append(text)
+
+
+def test_telegrams_retry_after_is_honoured(broker):
+    s, channel = broker
+    sender = RateLimitedSender(retry_after=3)
+    publish(channel, created(1))
+
+    with Running(s, sender):
+        assert wait_until(lambda: len(sender.sent) == 1, timeout=10)
+
+    # Not the 1 s of the normal first retry: the 3 s Telegram asked for.
+    assert sender.times[1] - sender.times[0] >= 2.9

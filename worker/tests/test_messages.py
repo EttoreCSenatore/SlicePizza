@@ -58,6 +58,7 @@ def test_unknown_version_is_invalid(version):
         event_body(order={}),
         event_body(order={**event_body()["order"], "total_cents": "lots"}),
         event_body(order={**event_body()["order"], "items": [{"pizza_name": "X"}]}),
+        event_body(order={**event_body()["order"], "previous_status": ["received"]}),
         {k: v for k, v in event_body().items() if k != "event_id"},
     ],
 )

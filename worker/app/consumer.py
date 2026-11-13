@@ -53,6 +53,8 @@ MAX_HOLD_SECONDS = 18 * 60
 # problem (wrong token or chat) waits SETUP_RETRY_SECONDS each time.
 MAX_RETRY_SECONDS = 60.0
 SETUP_RETRY_SECONDS = 60.0
+# Telegram's own retry_after (429) is followed up to this long.
+MAX_RETRY_AFTER_SECONDS = 10 * 60.0
 # Remember this many recent event ids to drop duplicates (ADR 0004: delivery
 # is at least once). In memory: a duplicate right after a restart can still
 # get through, which costs one repeated message, nothing more.
@@ -228,8 +230,13 @@ class Consumer:
                         error,
                         wait,
                     )
+                elif error.retry_after:
+                    # 429: Telegram says how long to wait. Retrying sooner only
+                    # earns another 429, so honour it (within the hold limit).
+                    wait = min(max(error.retry_after, 1.0), MAX_RETRY_AFTER_SECONDS)
+                    logger.warning("Sending failed: %s. Retrying in %.0fs.", error, wait)
                 else:
-                    wait = min(max(error.retry_after or delay, 1.0), MAX_RETRY_SECONDS)
+                    wait = delay
                     delay = min(delay * 2, MAX_RETRY_SECONDS)
                     logger.warning("Sending failed: %s. Retrying in %.0fs.", error, wait)
 

@@ -55,12 +55,15 @@ def parse_event(body: dict) -> OrderEvent | None:
         return None
     try:
         order = body["order"]
+        previous = order["previous_status"]
+        if previous is not None and not isinstance(previous, str):
+            raise ValueError("previous_status must be a string or null")
         return OrderEvent(
             event_id=str(body["event_id"]),
             type=body["type"],
             order_id=str(order["id"]),
             status=str(order["status"]),
-            previous_status=order["previous_status"],
+            previous_status=previous,
             customer_name=str(order["customer_name"]),
             total_cents=int(order["total_cents"]),
             items=tuple((str(i["pizza_name"]), int(i["quantity"])) for i in order["items"]),
