@@ -16,22 +16,69 @@ from sqlalchemy.orm import Session, selectinload
 
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db, wait_for_database
+from .events import ORDER_CREATED, ORDER_STATUS_CHANGED, record_event
 from .models import ALLOWED_TRANSITIONS, Order, OrderItem, OrderStatus, Pizza
+from .outbox import OutboxRelay, RabbitMQPublisher
 from .schemas import OrderCreate, OrderOut, OrderStatusUpdate, PizzaOut
 from .seed import seed_menu
 
 logger = logging.getLogger(__name__)
 
 
+def _configure_app_logging() -> None:
+    """Show the app's own log lines (app.*) next to Uvicorn's.
+
+    Uvicorn only configures its own loggers. Without a handler, Python printed
+    the app's warnings bare and dropped its INFO lines, such as the outbox
+    relay's "Published 2 order event(s)". Propagation stays on, so pytest's
+    caplog still sees them.
+    """
+    app_logger = logging.getLogger("app")
+    if not app_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
+        app_logger.addHandler(handler)
+        app_logger.setLevel(logging.INFO)
+
+
+_configure_app_logging()
+
+
+# Publishes the outbox to RabbitMQ when RABBITMQ_HOST is set (ADR 0004).
+relay: OutboxRelay | None = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global relay
     # Phase 1 keeps the schema simple: create the tables on startup and seed
     # the menu. Migrations (Alembic) arrive when the schema starts to evolve.
     await wait_for_database()
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_menu(db)
-    yield
+
+    if settings.rabbitmq is not None:
+        rabbitmq = settings.rabbitmq
+        relay = OutboxRelay(SessionLocal, lambda: RabbitMQPublisher(rabbitmq))
+        relay.start()
+    else:
+        logger.warning(
+            "RABBITMQ_HOST is not set: order events are kept in order_events "
+            "and published once RabbitMQ is configured."
+        )
+    try:
+        yield
+    finally:
+        if relay is not None:
+            relay.stop()
+            relay = None
+
+
+def _events_committed() -> None:
+    """Tell the relay there is something new to publish."""
+    if relay is not None:
+        relay.wake()
 
 
 app = FastAPI(
@@ -228,9 +275,12 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db)) -> Order:
         )
 
     db.add(order)
+    # Same transaction: the order and its event are saved together or not at all.
+    record_event(db, order, ORDER_CREATED)
     # The INSERT ... RETURNING already fills created_at/updated_at, and the
     # items and pizzas are in memory, so no refresh is needed.
     db.commit()
+    _events_committed()
     return order
 
 
@@ -272,8 +322,13 @@ def update_order_status(
             ),
         )
 
+    previous_status = order.status
     order.status = payload.status
+    # Same transaction as the status change (the outbox, ADR 0004). A no-op
+    # (same status) and a 409 returned above add no event.
+    record_event(db, order, ORDER_STATUS_CHANGED, previous_status=previous_status)
     # The UPDATE returns the new updated_at (eager_defaults on Order), so the
     # response shows exactly what this request wrote, with no extra SELECT.
     db.commit()
+    _events_committed()
     return order

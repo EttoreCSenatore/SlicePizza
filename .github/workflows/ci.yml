@@ -133,6 +133,13 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"customer":{"name":"CI","phone":"+55 11 90000-0000","address":"Rua do Teste, 1"},"items":[{"pizza_id":1,"quantity":1}]}'
 
+      # An order created above, before any queue existed, must still reach the
+      # queue bound here: the outbox kept its event (ADR 0004).
+      - name: Check that order events reach RabbitMQ
+        run: |
+          set -a; . ./.env; set +a
+          python3 .github/scripts/smoke_order_events.py
+
       - name: Dump logs
         if: always()
         run: docker compose logs --no-color

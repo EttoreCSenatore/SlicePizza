@@ -113,6 +113,8 @@ Open the menu website at <http://localhost:8080>: pick pizzas, place an order an
 
 Interactive API docs: <http://localhost:8080/api/docs>.
 
+RabbitMQ's management UI runs at <http://localhost:15672> (user and password: `RABBITMQ_USER` / `RABBITMQ_PASSWORD` from `.env`). Every order and status change publishes an event to the `slicepizza.events` exchange ([ADR 0004](docs/adr/0004-order-events-outbox-rabbitmq.md)).
+
 The database lives in the `slicepizza_pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
 
 To stop everything: `docker compose down`.
@@ -147,7 +149,7 @@ The site is served at http://localhost:3000/. The published version is at https:
 |---|---|---|
 | 1 | "I want to see it running on your computer" | ✅ Done |
 | 2 | "I want the site live on my own domain" | 🚧 In progress |
-| 3 | "Customers want to know when their pizza is on the way" | ⏳ |
+| 3 | "Customers want to know when their pizza is on the way" | 🚧 In progress |
 | 4 | "Every time you change something, something breaks" | ⏳ |
 | 5 | "The site went down Friday night and nobody noticed" | ⏳ |
 | 6 | "The server died and we lost the orders" | ⏳ |

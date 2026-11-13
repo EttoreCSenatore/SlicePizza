@@ -38,11 +38,22 @@ One domain serves both the site and the API, so the browser never calls another 
 1. The customer opens `slicepizza.senatore.tech` and picks their pizzas.
 2. The site calls `POST /api/orders`, which Caddy forwards to the API as `POST /orders`. The order is saved in Postgres with status `received`.
 3. The kitchen sees the order on the dashboard and changes its status to `preparing`.
-4. The API saves the new status and publishes an `order.status_changed` event to the queue.
+4. The API saves the new status **and** an `order.status_changed` event in the same transaction (the outbox). A background relay publishes the event to RabbitMQ ([ADR 0004](adr/0004-order-events-outbox-rabbitmq.md)).
 5. The worker reads the event and sends the customer a Telegram message.
 6. The same happens for `out_for_delivery` and `delivered`.
 
 Why use a queue in step 4, instead of having the API call Telegram directly? If Telegram is slow or down, the API keeps responding quickly, and the messages wait in the queue until the worker can send them.
+
+Why the outbox, instead of publishing right after saving? Saving to Postgres and publishing to RabbitMQ are two systems: a crash or a RabbitMQ restart between them would lose the event. With the outbox, the event is saved with the change, and publishing is retried until RabbitMQ confirms it.
+
+### Events
+
+| Routing key | When | Body |
+|---|---|---|
+| `order.created` | An order is placed | `order` with `status: "received"`, `previous_status: null` |
+| `order.status_changed` | The status changes (not on a no-op or a refused change) | `order` with the new `status` and the `previous_status` |
+
+All go to the `slicepizza.events` topic exchange, as persistent JSON with `message_id` = `event_id`. The format is documented in [`api/app/events.py`](../api/app/events.py). Consumers bind their own durable queue (e.g. `order.#`) and must ignore duplicates by `message_id`.
 
 ## Order status
 

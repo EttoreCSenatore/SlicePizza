@@ -48,6 +48,16 @@ received ──► preparing ──► out_for_delivery ──► delivered
 
 Skipping a step returns `409 Conflict`. Repeating the current status is a no-op.
 
+### Order events
+
+Every new order and every status change also writes an **event** (`order.created`, `order.status_changed`) to the `order_events` table, in the same transaction. A background thread (the outbox relay) publishes them to RabbitMQ, oldest first, and marks them published once RabbitMQ confirms. If RabbitMQ is down, or no queue exists yet, the events wait in the table and go out later. A repeated status (no-op) or a refused change writes no event. Why, and the message format: [ADR 0004](../docs/adr/0004-order-events-outbox-rabbitmq.md) and [`app/events.py`](app/events.py).
+
+To see what is waiting:
+
+```sql
+SELECT id, type, created_at FROM order_events WHERE published_at IS NULL ORDER BY id;
+```
+
 ### Calling the API from a browser (CORS)
 
 A browser only lets a page call an API on **another origin** (another domain, or another port) if the API says that origin is allowed. When the page and the API share an origin, nothing is needed. Otherwise, list the allowed origins in **`CORS_ORIGINS`**, comma-separated:
@@ -136,6 +146,8 @@ api/
 │   ├── main.py        # FastAPI app and routes
 │   ├── config.py      # settings from environment variables
 │   ├── database.py    # engine, session and get_db dependency
+│   ├── events.py      # order events: format, record_event()
+│   ├── outbox.py      # relay that publishes the events to RabbitMQ
 │   ├── models.py      # SQLAlchemy models and status transitions
 │   ├── schemas.py     # Pydantic request/response schemas
 │   └── seed.py        # default menu
@@ -145,6 +157,7 @@ api/
 │   ├── test_validation.py # invalid input → 422
 │   ├── test_errors.py     # database errors → 503 or 500
 │   ├── test_config.py     # environment variables
+│   ├── test_events.py     # order events, the outbox and the relay
 │   └── test_startup.py    # schema creation and menu seed
 ├── scripts/
 │   └── compile-requirements.sh  # regenerates the lock files
@@ -213,12 +226,17 @@ Usually you don't do this by hand: **Dependabot** proposes new versions once a w
 | `POSTGRES_PASSWORD` | Database password (optional), any characters, no encoding needed | `p@ss:w/rd` |
 | `POSTGRES_DB` | Database name | `slicepizza` |
 | `DATABASE_URL` | Optional full URL; takes precedence over the variables above | `sqlite:///./slicepizza.db` |
+| `RABBITMQ_HOST` | Optional. Turns on publishing of order events. Unset: events wait in `order_events` | `rabbitmq` (Compose) or `localhost` |
+| `RABBITMQ_PORT` | AMQP port (optional, default `5672`) | `5672` |
+| `RABBITMQ_USER` | RabbitMQ user (required with `RABBITMQ_HOST`) | `slicepizza` |
+| `RABBITMQ_PASSWORD` | RabbitMQ password (required with `RABBITMQ_HOST`), any characters | `p@ss:w/rd` |
+| `RABBITMQ_VHOST` | Virtual host (optional, default `/`) | `/` |
 
 Docker Compose sets the `POSTGRES_*` variables from the root `.env`. The parts are passed separately, never pasted into a URL, so the password needs no URL-encoding.
 
 `DATABASE_URL` and `TEST_DATABASE_URL` **are** URLs: special characters in their password must be percent-encoded (`@` → `%40`, `:` → `%3A`, `/` → `%2F`, `#` → `%23`, `%` → `%25`). Prefer the `POSTGRES_*` variables when the password has such characters.
 
-Compose-only variable (root `.env`): `POSTGRES_HOST_PORT`, the port on your machine where Postgres is published (default `5432`).
+Compose-only variables (root `.env`): `POSTGRES_HOST_PORT` and `RABBITMQ_HOST_PORT`, the ports on your machine where Postgres and RabbitMQ's AMQP are published (defaults `5432` and `5672`).
 
 ## Schema note
 

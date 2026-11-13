@@ -56,8 +56,8 @@ Check the boxes as you make progress.
 
 **Goal:** notify the customer on every status change, without slowing down the API.
 
-- [ ] Add RabbitMQ to `docker-compose.yml`
-- [ ] The API publishes an event to the queue when an order's status changes
+- [x] Add RabbitMQ to `docker-compose.yml`
+- [x] The API publishes an event to the queue when an order's status changes (through an outbox, [ADR 0004](adr/0004-order-events-outbox-rabbitmq.md))
 - [ ] Create the worker in `worker/` that consumes the queue
 - [ ] Create a Telegram bot and send the notification from the worker
 - [ ] Build the kitchen dashboard (`admin.yourdomain.com`)
