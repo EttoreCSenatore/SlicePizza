@@ -23,7 +23,7 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 
 | Container | Image | Public? | Settings |
 |---|---|---|---|
-| `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`) |
+| `web` | `slicepizza-web` (Caddy + the site, [`infra/caddy/`](../infra/caddy/)) | **Yes**: the domain points here, port 8080 | `API_UPSTREAM`: the API's `host:port` on the project network (default `api:8000`). `TELEGRAM_BOT_USERNAME`: the bot for the "Follow on Telegram" button, without the @ (unset: no button) |
 | `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below. `INTERNAL_API_TOKEN` for the worker's routes ([ADR 0006](adr/0006-customer-telegram-opt-in.md)) |
 
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
@@ -112,6 +112,7 @@ How to create the bot and find the chat id: [worker/README.md](../worker/README.
    - `rabbitmq` with a fixed hostname and its volume, and `RABBITMQ_*` on `api` (see [RabbitMQ](#rabbitmq)).
    - `worker`: `ghcr.io/senatoreteam/slicepizza-worker:latest` with its variables (see [Worker](#worker)), in the automatic update too. One instance only.
    - The same `INTERNAL_API_TOKEN` (`openssl rand -hex 32`) on `api` and `worker`.
+   - `TELEGRAM_BOT_USERNAME` on `web` (the bot's username, without the @), so the order page shows **Follow on Telegram**. Set it once the worker has its token and `INTERNAL_API_TOKEN`; before that the button would lead to a bot that can't link the order.
 3. Point the domains' DNS to the server: `A slicepizza → 179.66.139.4`, `A @ → 179.66.139.4` and `CNAME www → senatore.tech` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there; if the proxy tried before that, restart the `web` container so it tries again.
 
 ### Moving from the API-only setup

@@ -15,6 +15,12 @@ const REFRESH_MS = 10_000;
 const MAX_RETRY_MS = 60_000; // after repeated errors, retry at most this far apart
 const MAX_PIZZAS_PER_ORDER = 50; // same limit as the API (api/app/schemas.py)
 
+// The Telegram bot behind "Follow on Telegram" (ADR 0006). Anything that is not
+// a Telegram username (unset, or config.js served without Caddy) means no button.
+const TELEGRAM_BOT = /^[A-Za-z0-9_]{5,32}$/.test(window.SLICEPIZZA_CONFIG?.telegramBot || "")
+  ? window.SLICEPIZZA_CONFIG.telegramBot
+  : "";
+
 const STEPS = [
   { status: "received", label: "Order received", detail: "The kitchen has your order." },
   { status: "preparing", label: "Being prepared", detail: "Your pizzas are in the oven." },
@@ -388,6 +394,14 @@ function renderOrder(order) {
   );
   $("steps").hidden = cancelled;
   $("cancelled").hidden = !cancelled;
+
+  // Following only makes sense while there are updates still to come.
+  const following = Boolean(TELEGRAM_BOT) && !cancelled && order.status !== "delivered";
+  $("follow").hidden = !following;
+  if (following) {
+    // Opens the bot with "/start <order id>"; the worker links that chat to the order.
+    $("follow-link").href = `https://t.me/${TELEGRAM_BOT}?start=${encodeURIComponent(order.id)}`;
+  }
 
   $("order-items").replaceChildren(
     ...order.items.map((item) =>

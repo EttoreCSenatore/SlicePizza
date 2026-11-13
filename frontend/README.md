@@ -14,7 +14,7 @@ menu/
 ├── index.html   # the page: menu, delivery form, order tracking
 ├── app.js       # talks to the API and renders the page
 ├── styles.css
-├── config.js    # the API address: the only file that changes per environment
+├── config.js    # the API address and the Telegram bot; Caddy fills in the bot
 └── favicon.svg
 ```
 
@@ -24,6 +24,7 @@ What it does:
 2. The customer picks quantities and fills in name, phone and address.
 3. **Place order** sends `POST /orders`, then opens `#/order/<id>`.
 4. The order page calls `GET /orders/<id>` every 10 seconds until the order is delivered or cancelled, and pauses while the tab is in the background. After an error it retries further apart each time (up to once a minute). The last order is remembered in the browser, so the customer can find it again from the menu.
+5. While the order is still on its way, the page shows **Follow on Telegram** (see below).
 
 If an order fails because a pizza left the menu (404) or sold out (409), the page reloads the menu and takes that pizza out of the basket.
 
@@ -63,6 +64,18 @@ When something fails, the page says which side it was:
 
 - **"The pizzeria's system is offline for a moment"**: an answer came, but it was 502, 503 or 504. Either the API is down or `web` cannot reach it (Caddy answers 502: check `API_UPSTREAM`), or the API is up without its database (503). Open `/api/health` in the same browser to tell which.
 - **"Couldn't reach the pizzeria"**: no answer at all. The connection is down, or the browser blocked the call: open the browser's console, where a blocked call shows as a Content-Security-Policy or CORS error.
+
+### Follow on Telegram
+
+The order page can offer a **Follow on Telegram** button: it opens `https://t.me/<bot>?start=<order id>`, and when the customer presses *Start*, the notification worker links that chat to the order and sends its updates there ([ADR 0006](../docs/adr/0006-customer-telegram-opt-in.md)).
+
+The bot's username comes from the `TELEGRAM_BOT_USERNAME` setting on the `web` container. Caddy serves `config.js` as a template and fills it in (escaped for a JavaScript string), so the same image works with any bot, or none:
+
+```js
+telegramBot: '{{env "TELEGRAM_BOT_USERNAME" | js}}',
+```
+
+No setting, or anything that isn't a Telegram username, means no button. That is also what you get when you open the files without Caddy: the raw template is not a username. The button is hidden once the order is delivered or cancelled, since no more updates will come.
 
 ### Pointing it at another API
 

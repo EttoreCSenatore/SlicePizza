@@ -1,6 +1,6 @@
 # Notification worker
 
-> 🚧 **Phase 3.** The pizzeria's Telegram chat gets a message for every new order and every status change, and customers who follow their order get its updates. Next: the "Follow on Telegram" button on the order page. See the [ROADMAP](../docs/ROADMAP.md#phase-3-customers-want-to-know-when-their-pizza-is-on-the-way).
+> 🚧 **Phase 3.** The pizzeria's Telegram chat gets a message for every new order and every status change, and customers who follow it from the order page ("Follow on Telegram") get its updates. See the [ROADMAP](../docs/ROADMAP.md#phase-3-customers-want-to-know-when-their-pizza-is-on-the-way).
 
 A Python service that reads order events from its RabbitMQ queue and sends Telegram messages, and that runs the bot customers talk to. It never touches the database: everything it needs to send is in the event, and the API links customers' chats to their orders ([ADR 0006](../docs/adr/0006-customer-telegram-opt-in.md)).
 
@@ -96,7 +96,14 @@ docker compose start worker
 
 If the token or the chat id is wrong, the worker logs an **error** every minute saying which setting to check, and keeps the message until it can send it.
 
-5. For customers to follow their orders, set the same `INTERNAL_API_TOKEN` for the API and the worker (`openssl rand -hex 32`) in `.env`, and restart both: `docker compose up -d api worker`. Then open `https://t.me/<your bot's username>?start=<an order id>` on your phone.
+5. For customers to follow their orders, set the same `INTERNAL_API_TOKEN` for the API and the worker (`openssl rand -hex 32`) in `.env`, and restart both: `docker compose up -d api worker`. To show the **Follow on Telegram** button on the order page, set the bot's username (without the @) for the web container too, and restart it:
+   ```bash
+   TELEGRAM_BOT_USERNAME=ZesPizzeriaBot
+   ```
+   ```bash
+   docker compose up -d web
+   ```
+   Then place an order and tap the button on your phone.
 
 Only **one** worker may run per bot: it reads the bot's messages by long polling, and Telegram refuses a second reader (409 Conflict).
 

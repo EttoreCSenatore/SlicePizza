@@ -154,6 +154,8 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       API_UPSTREAM: api:8000
+      # The bot behind "Follow on Telegram" on the order page; unset: no button.
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     depends_on:

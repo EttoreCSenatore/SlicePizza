@@ -13,6 +13,7 @@
 #   API_UPSTREAM       where the API listens, as host:port   (default api:8000)
 #   SITE_ROOT          folder with the site's files          (default /srv)
 #   EXTRA_CONNECT_SRC  other origins the page may call, space-separated
+#   TELEGRAM_BOT_USERNAME  the bot for "Follow on Telegram" (see config.js below)
 #                      (default none: the page only calls its own /api).
 #                      Needed only if config.js points at an API elsewhere.
 {
@@ -63,6 +64,16 @@
 
 	handle {
 		root * {$SITE_ROOT:/srv}
+
+		# config.js is a template: Caddy fills in settings from the container's
+		# environment when it serves it, so one image works everywhere. Only
+		# that file: the others are served as they are.
+		#   TELEGRAM_BOT_USERNAME  the bot behind "Follow on Telegram" (ADR 0006);
+		#                          empty: no button
+		@config path /config.js
+		templates @config {
+			mime application/javascript text/javascript
+		}
 		file_server
 
 		header {
