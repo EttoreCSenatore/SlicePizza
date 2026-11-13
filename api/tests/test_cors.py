@@ -1,16 +1,24 @@
 """CORS for the menu site, and the Content-Type rule for JSON bodies.
 
-The menu site runs on another domain (a CDN), so the browser only lets it call
-the API when the API answers with the right CORS headers. conftest.py sets
-CORS_ORIGINS to ALLOWED_ORIGIN before the app is imported.
+CORS is off by default: in production the site and the API share one origin
+(ADR 0003). A site served from another origin can only call the API when the
+API answers with the right CORS headers. conftest.py sets CORS_ORIGINS to
+ALLOWED_ORIGIN before the app is imported; test_cors_is_off_by_default starts
+the app in a separate process without it.
 """
 
 import json
 import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.config import ConfigError, cors_origins_from_env
+from app.database import get_db
+from app.main import app
 
 ALLOWED_ORIGIN = os.environ["CORS_ORIGINS"]  # set by conftest.py
 
@@ -84,6 +92,60 @@ def test_error_responses_also_carry_the_cors_header(client):
     assert response.headers["access-control-allow-origin"] == ALLOWED_ORIGIN
 
 
+class BrokenSession:
+    """A session whose every query fails with an error no handler expects."""
+
+    def scalars(self, *args, **kwargs):
+        raise RuntimeError("boom")
+
+
+def test_unexpected_500_also_carries_the_cors_header(caplog):
+    # Starlette answers unhandled errors outside CORSMiddleware; without
+    # UnhandledErrorAsJSON the browser would see a CORS error, not the 500.
+    app.dependency_overrides[get_db] = lambda: BrokenSession()
+    try:
+        response = TestClient(app).get("/menu", headers={"Origin": ALLOWED_ORIGIN})
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal Server Error"}
+    assert response.headers["access-control-allow-origin"] == ALLOWED_ORIGIN
+    assert "Unhandled error on GET /menu" in caplog.text
+
+
+def test_cors_is_off_by_default():
+    # The app reads CORS_ORIGINS once at import, and conftest.py sets it for
+    # this process, so check the default in a fresh interpreter.
+    script = """
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+get = client.get("/health", headers={"Origin": "http://localhost:8080"})
+preflight = client.options(
+    "/orders",
+    headers={"Origin": "http://localhost:8080", "Access-Control-Request-Method": "POST"},
+)
+assert get.status_code == 200, get.status_code
+assert "access-control-allow-origin" not in get.headers, get.headers
+assert preflight.status_code == 405, preflight.status_code
+assert "access-control-allow-origin" not in preflight.headers, preflight.headers
+"""
+    env = {k: v for k, v in os.environ.items() if k != "CORS_ORIGINS"}
+    env["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[1],  # api/, where the app package is
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,  # the assert below shows stderr
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_response_to_another_origin_has_no_cors_header(client):
     response = client.get("/menu", headers={"Origin": OTHER_ORIGIN})
 
@@ -139,6 +201,25 @@ def test_several_origins_are_trimmed_lowercased_and_deduplicated(env):
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Browsers never send the scheme's default port.
+        ("https://www.example.com:443", "https://www.example.com"),
+        ("http://localhost:80", "http://localhost"),
+        ("HTTP://LocalHost:8080", "http://localhost:8080"),
+        ("https://www.example.com:8443", "https://www.example.com:8443"),
+        # Browsers send a non-ASCII domain in punycode.
+        ("https://Bücher.de", "https://xn--bcher-kva.de"),
+        ("http://[::1]:8080", "http://[::1]:8080"),
+        ("http://127.0.0.1:8080", "http://127.0.0.1:8080"),
+    ],
+)
+def test_origins_are_written_the_way_browsers_send_them(env, value, expected):
+    env.setenv("CORS_ORIGINS", value)
+    assert cors_origins_from_env() == [expected]
+
+
+@pytest.mark.parametrize(
     "value",
     [
         "*",
@@ -149,6 +230,11 @@ def test_several_origins_are_trimmed_lowercased_and_deduplicated(env):
         "https://user:pass@www.example.com",
         "https://www.example.com:99999",
         "https://www.example.com?x=1",
+        # Leftover characters that urlsplit reports as empty parts.
+        "https://www.example.com:",
+        "https://www.example.com?",
+        "https://www.example.com#",
+        "https://@www.example.com",
     ],
 )
 def test_invalid_origins_are_refused(env, value):
