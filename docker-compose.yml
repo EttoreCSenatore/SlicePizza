@@ -28,7 +28,7 @@ services:
   # Message broker for order events (Phase 3, ADR 0004). The API publishes to
   # it; consumers (the worker) read from their own queues.
   rabbitmq:
-    image: rabbitmq:4.3.4-management-alpine
+    image: rabbitmq:4.4.0-management-alpine
     restart: unless-stopped
     # RabbitMQ keeps its data under its node name, rabbit@<hostname>. Compose
     # would give every new container a random hostname, so after a recreate

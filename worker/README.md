@@ -97,7 +97,7 @@ set -a; source ../.env; set +a
 RABBITMQ_TEST_HOST=localhost RABBITMQ_TEST_USER=$RABBITMQ_USER RABBITMQ_TEST_PASSWORD=$RABBITMQ_PASSWORD pytest
 ```
 
-CI runs them against `rabbitmq:4.3.4-management-alpine`, the same version as `docker-compose.yml`.
+CI runs them against `rabbitmq:4.4.0-management-alpine`, the same version as `docker-compose.yml`.
 
 ## Dependencies
 
