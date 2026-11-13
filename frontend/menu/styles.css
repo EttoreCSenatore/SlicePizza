@@ -320,6 +320,20 @@ main.wrap {
   background: var(--tomato-dark);
 }
 
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  background: var(--paper);
+  color: var(--basil);
+  box-shadow: inset 0 0 0 2px var(--basil);
+  text-decoration: none;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--basil);
+  color: var(--paper);
+}
+
 .button:disabled {
   background: #c9d1cb;
   color: #6c7a71;
@@ -454,6 +468,17 @@ main.wrap {
 .receipt-total {
   margin: 0;
   font-weight: 600;
+}
+
+.follow {
+  margin: 0 0 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  background: var(--leaf);
+}
+
+.follow p {
+  margin: 0 0 0.75rem;
 }
 
 .deliver-to {
