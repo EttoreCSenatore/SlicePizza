@@ -26,8 +26,8 @@ import threading
 import time
 from collections import OrderedDict
 
-from .messages import InvalidEvent, parse_event, pizzeria_text
-from .telegram import RejectedMessage, Sender, SetupFailure, TemporaryFailure
+from .messages import InvalidEvent, customer_text, parse_event, pizzeria_text
+from .telegram import ChatUnavailable, RejectedMessage, Sender, SetupFailure, TemporaryFailure
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,9 @@ MAX_RETRY_SECONDS = 60.0
 SETUP_RETRY_SECONDS = 60.0
 # Telegram's own retry_after (429) is followed up to this long.
 MAX_RETRY_AFTER_SECONDS = 10 * 60.0
-# Remember this many recent event ids to drop duplicates (ADR 0004: delivery
-# is at least once). In memory: a duplicate right after a restart can still
-# get through, which costs one repeated message, nothing more.
+# Remember this many recent (event, chat) pairs to drop duplicates (ADR 0004:
+# delivery is at least once). In memory: a duplicate right after a restart can
+# still get through, which costs one repeated message, nothing more.
 SEEN_EVENTS = 10_000
 
 
@@ -67,10 +67,19 @@ class Decision(enum.Enum):
 
 
 class Notifier:
-    def __init__(self, sender: Sender, pizzeria_chat_id: str = "") -> None:
+    """Sends one event's messages: to the pizzeria's chat, then to customers.
+
+    Customers are the chats in the event's ``notify.telegram_chat_ids``
+    (ADR 0006). Each (event, chat) pair is sent once: when one send fails and
+    the message is retried, the chats that already got it are skipped.
+    """
+
+    def __init__(self, sender: Sender, pizzeria_chat_id: str = "", api=None) -> None:
         self._sender = sender
         self._pizzeria_chat_id = pizzeria_chat_id
-        self._seen: OrderedDict[str, None] = OrderedDict()
+        # Optional ApiClient: unlinks customers who blocked the bot.
+        self._api = api
+        self._seen: OrderedDict[tuple[str, str], None] = OrderedDict()
 
     def handle(self, body: bytes) -> Decision:
         """Process one message. Raises TemporaryFailure/SetupFailure to retry it."""
@@ -84,28 +93,63 @@ class Notifier:
         if event is None:
             logger.info("Ignoring an event type this worker does not handle")
             return Decision.ACK
-        if event.event_id in self._seen:
+
+        # (chat, text, is the pizzeria's chat): the pizzeria first.
+        recipients = [(chat, customer_text(event), False) for chat in event.telegram_chat_ids]
+        if self._pizzeria_chat_id:
+            recipients.insert(0, (self._pizzeria_chat_id, pizzeria_text(event), True))
+        keys = [self._key(event.event_id, chat, pizzeria) for chat, _, pizzeria in recipients]
+        if keys and all(key in self._seen for key in keys):
             logger.info("Duplicate event %s, already handled", event.event_id)
             return Decision.ACK
 
-        if self._pizzeria_chat_id:
+        for (chat, text, pizzeria), key in zip(recipients, keys):
+            if key in self._seen:
+                continue  # sent before a failure further down the list
             try:
-                self._sender.send(self._pizzeria_chat_id, pizzeria_text(event))
+                self._sender.send(chat, text)
             except RejectedMessage as error:
-                logger.error(
-                    "Telegram refused the message for event %s, moving it to %s: %s",
-                    event.event_id,
-                    DEAD_LETTER_QUEUE,
-                    error,
-                )
-                return Decision.DEAD_LETTER
+                if pizzeria:
+                    logger.error(
+                        "Telegram refused the pizzeria's message for event %s, moving it to %s: %s",
+                        event.event_id,
+                        DEAD_LETTER_QUEUE,
+                        error,
+                    )
+                    return Decision.DEAD_LETTER
+                logger.error("Telegram refused a customer's message for event %s: %s", event.event_id, error)
+            except ChatUnavailable as error:
+                if pizzeria:
+                    raise  # a setup problem: keep the message until it is fixed
+                logger.info("A customer's chat is unavailable (%s); not messaging it again", error)
+                self._forget_chat(chat)
+            self._remember(key)
 
-        self._remember(event.event_id)
-        logger.info("Handled %s for order %s", event.type, event.short_id)
+        logger.info(
+            "Handled %s for order %s (%d customer chat(s))",
+            event.type,
+            event.short_id,
+            len(event.telegram_chat_ids),
+        )
         return Decision.ACK
 
-    def _remember(self, event_id: str) -> None:
-        self._seen[event_id] = None
+    def _forget_chat(self, chat_id: int) -> None:
+        """A customer blocked the bot: stop including them in events."""
+        if self._api is None:
+            return
+        try:
+            self._api.unfollow_all(chat_id)
+        except Exception as error:  # noqa: BLE001 - best effort; they get skipped anyway
+            logger.warning("Could not unlink an unavailable chat: %s", error)
+
+    @staticmethod
+    def _key(event_id: str, chat, pizzeria: bool) -> tuple[str, str]:
+        # The pizzeria's chat may also follow an order as a "customer": two
+        # different messages, so two different keys.
+        return (event_id, f"{'pizzeria' if pizzeria else 'customer'}:{chat}")
+
+    def _remember(self, key: tuple[str, str]) -> None:
+        self._seen[key] = None
         if len(self._seen) > SEEN_EVENTS:
             self._seen.popitem(last=False)
 

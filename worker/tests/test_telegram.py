@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from app.telegram import (
+    ChatUnavailable,
     LogSender,
     RejectedMessage,
     SetupFailure,
@@ -67,9 +68,10 @@ def test_sends_the_message(fake_telegram):
         (500, {"ok": False, "description": "Internal Server Error"}, TemporaryFailure),
         (502, {}, TemporaryFailure),
         (401, {"ok": False, "description": "Unauthorized"}, SetupFailure),
-        (403, {"ok": False, "description": "Forbidden: bot was blocked by the user"}, SetupFailure),
+        (403, {"ok": False, "description": "Forbidden: bot was blocked by the user"}, ChatUnavailable),
         (404, {"ok": False, "description": "Not Found"}, SetupFailure),
-        (400, {"ok": False, "description": "Bad Request: chat not found"}, SetupFailure),
+        (400, {"ok": False, "description": "Bad Request: chat not found"}, ChatUnavailable),
+        (409, {"ok": False, "description": "Conflict: terminated by other getUpdates request"}, TemporaryFailure),
         (400, {"ok": False, "description": "Bad Request: message is too long"}, RejectedMessage),
     ],
 )

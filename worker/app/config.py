@@ -22,6 +22,10 @@ class Settings:
     # Chat (or group) that gets every order event. Empty: none.
     telegram_pizzeria_chat_id: str
     telegram_api_url: str
+    # The API's /internal routes, to link customers' chats to orders (ADR 0006).
+    # Empty token: /start and /stop answer "try again later".
+    api_url: str
+    internal_api_token: str
     # The worker touches this file while it is connected and working; the
     # container healthcheck looks at its age.
     heartbeat_file: str
@@ -31,7 +35,8 @@ class Settings:
         return (
             f"Settings(rabbitmq={self.rabbitmq_user}@{self.rabbitmq_host}:{self.rabbitmq_port}"
             f"{self.rabbitmq_vhost}, telegram={'on' if self.telegram_bot_token else 'off'}, "
-            f"pizzeria_chat={'set' if self.telegram_pizzeria_chat_id else 'unset'})"
+            f"pizzeria_chat={'set' if self.telegram_pizzeria_chat_id else 'unset'}, "
+            f"api={self.api_url}, internal_token={'set' if self.internal_api_token else 'unset'})"
         )
 
 
@@ -66,5 +71,7 @@ def load_settings() -> Settings:
         telegram_bot_token=token,
         telegram_pizzeria_chat_id=chat_id,
         telegram_api_url=(os.getenv("TELEGRAM_API_URL") or "https://api.telegram.org").rstrip("/"),
+        api_url=(os.getenv("API_URL") or "http://api:8000").rstrip("/"),
+        internal_api_token=(os.getenv("INTERNAL_API_TOKEN") or "").strip(),
         heartbeat_file=os.getenv("WORKER_HEARTBEAT_FILE") or "/tmp/worker-alive",
     )

@@ -2,9 +2,11 @@ import pytest
 
 from app.messages import (
     InvalidEvent,
+    customer_text,
     format_brl,
     parse_event,
     pizzeria_text,
+    reply_following,
     status_label,
 )
 
@@ -94,3 +96,60 @@ def test_pizzeria_text_for_a_status_change():
 
 def test_unknown_status_is_shown_as_is():
     assert status_label("baking") == "baking"
+
+
+# --- Customers (ADR 0006) -------------------------------------------------------
+
+
+def test_events_without_notify_have_no_customer_chats():
+    assert parse_event(event_body()).telegram_chat_ids == ()
+
+
+def test_customer_chats_are_read_without_duplicates():
+    event = parse_event(event_body(notify={"telegram_chat_ids": [111, -222, 111]}))
+
+    assert event.telegram_chat_ids == (111, -222)
+
+
+@pytest.mark.parametrize(
+    "notify",
+    ["chats", {"telegram_chat_ids": "111"}, {"telegram_chat_ids": ["111"]}, {"telegram_chat_ids": [True]}, {"telegram_chat_ids": [1.5]}],
+)
+def test_malformed_customer_chats_are_invalid(notify):
+    with pytest.raises(InvalidEvent):
+        parse_event(event_body(notify=notify))
+
+
+@pytest.mark.parametrize(
+    ("status", "words"),
+    [
+        ("preparing", "is being prepared"),
+        ("out_for_delivery", "is on the way"),
+        ("delivered", "was delivered"),
+        ("cancelled", "was cancelled"),
+        ("baking", "Your order 9b2e1c4a: baking."),
+    ],
+)
+def test_customer_text(status, words):
+    order = {**event_body()["order"], "status": status, "previous_status": "received"}
+    text = customer_text(parse_event(event_body(type="order.status_changed", order=order)))
+
+    assert text.startswith("Zé's Pizzeria\n")
+    assert words in text
+    assert "9b2e1c4a" in text
+    assert "Maria" not in text  # the customer knows their own name
+
+
+def test_reply_following_an_open_order():
+    text = reply_following("9b2e1c4a", "preparing")
+
+    assert "You're following order 9b2e1c4a" in text
+    assert "is being prepared" in text
+    assert "/stop" in text
+
+
+def test_reply_following_a_finished_order():
+    text = reply_following("9b2e1c4a", "delivered")
+
+    assert "was delivered" in text
+    assert "no more updates" in text

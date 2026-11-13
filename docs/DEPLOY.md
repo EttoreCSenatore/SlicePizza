@@ -84,8 +84,9 @@ The notification worker ([`worker/`](../worker/), [ADR 0005](adr/0005-notificati
 | Item | On the server |
 |---|---|
 | Image | `ghcr.io/senatoreteam/slicepizza-worker:latest`, updated automatically like the others |
-| Network | The project's network, to reach `rabbitmq`. It also needs outgoing HTTPS to `api.telegram.org` |
-| Variables | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` (the same user as the API), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_PIZZERIA_CHAT_ID` |
+| Network | The project's network, to reach `rabbitmq` and `api`. It also needs outgoing HTTPS to `api.telegram.org` |
+| Variables | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` (the same user as the API), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_PIZZERIA_CHAT_ID`, `API_URL` (the API on the project network, e.g. `http://api:8000`) and `INTERNAL_API_TOKEN` (**the same value as on the API**) |
+| Instances | **Exactly one.** It reads the bot's messages by long polling, and Telegram allows one reader per bot: a second worker would get 409 Conflict ([ADR 0006](adr/0006-customer-telegram-opt-in.md)) |
 | Secrets | The bot token is a password: stored on the server only, never in Git |
 | Health | Healthy while `/tmp/worker-alive` is less than 30 s old (see `docker-compose.yml`) |
 | Restarts | Safe at any time: a message is acknowledged only after it was sent; an interrupted one goes back to the queue |
@@ -109,7 +110,8 @@ How to create the bot and find the chat id: [worker/README.md](../worker/README.
    - Route `slicepizza.senatore.tech` to `web` on port **8080** (`senatore.tech` and `www.senatore.tech` too, if they should keep showing the system).
    - Add the `web` image to the automatic update, like the API's.
    - `rabbitmq` with a fixed hostname and its volume, and `RABBITMQ_*` on `api` (see [RabbitMQ](#rabbitmq)).
-   - `worker`: `ghcr.io/senatoreteam/slicepizza-worker:latest` with its variables (see [Worker](#worker)), in the automatic update too.
+   - `worker`: `ghcr.io/senatoreteam/slicepizza-worker:latest` with its variables (see [Worker](#worker)), in the automatic update too. One instance only.
+   - The same `INTERNAL_API_TOKEN` (`openssl rand -hex 32`) on `api` and `worker`.
 3. Point the domains' DNS to the server: `A slicepizza → 179.66.139.4`, `A @ → 179.66.139.4` and `CNAME www → senatore.tech` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there; if the proxy tried before that, restart the `web` container so it tries again.
 
 ### Moving from the API-only setup

@@ -38,7 +38,9 @@ slicepizza.dead-letter ────► notifications.dead-letter (kept until a p
 |---|---|
 | Telegram down, 5xx, network | Keep the message, retry after 1 s, 2 s, 4 s… up to 60 s. The queue waits behind it, which keeps the order of messages |
 | 429 Too Many Requests | Wait the `retry_after` Telegram gives, then retry |
-| Wrong token, bot removed, wrong chat id | Keep the message, log an **error** every 60 s saying which setting to check |
+| Wrong token, bot removed from the pizzeria's chat, wrong chat id | Keep the message, log an **error** every 60 s saying which setting to check |
+| A **customer's** chat is unavailable (they blocked the bot) | Skip that chat and unlink it ([ADR 0006](0006-customer-telegram-opt-in.md)); the others still get the message |
+| Telegram refuses one **customer's** message | Skip that chat and log an error; the others still get it |
 | Telegram refuses the message (other 400s) | Dead-letter it and log an error |
 | Unreadable message, unknown version | Dead-letter it and log an error, **without the body** (it has a customer's name) |
 | Known version, unknown event type | Acknowledge and ignore it: a newer API may publish events this worker does not need |
@@ -52,7 +54,7 @@ slicepizza.dead-letter ────► notifications.dead-letter (kept until a p
 
 So a Telegram outage, however long, never dead-letters a message and never reorders them. A crash or a lost connection **does** count, so a bug that crashes the worker on one message is cut off after 20 attempts.
 
-**Duplicates** are dropped by `event_id`, remembering the last 10 000 in memory. Delivery is at least once (ADR 0004), and duplicates are rare: they need the API to stop between publishing and marking the event published.
+**Duplicates** are dropped by `event_id` and chat, remembering the last 10 000 in memory. If one chat fails and the message is retried, the chats that already got it are skipped. Delivery is at least once (ADR 0004), and duplicates are rare: they need the API to stop between publishing and marking the event published.
 
 **Without `TELEGRAM_BOT_TOKEN`** the worker logs each message instead of sending it, so `docker compose up` and CI need no bot.
 

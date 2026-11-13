@@ -145,6 +145,81 @@ jobs:
         working-directory: worker
         run: pytest -q
 
+  telegram-e2e:
+    # A customer follows their order on Telegram, end to end (ADR 0006): the real API
+    # (Postgres, RabbitMQ) and the real worker, against a fake Telegram Bot API that
+    # injects /start and /stop and records every message the bot sends.
+    name: Telegram opt-in, end to end
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: slicepizza
+          POSTGRES_PASSWORD: slicepizza
+          POSTGRES_DB: slicepizza_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U slicepizza -d slicepizza_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4.4.0-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: slicepizza
+          RABBITMQ_DEFAULT_PASS: slicepizza
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 12
+          --health-start-period 20s
+    env:
+      INTERNAL_API_TOKEN: ci-internal-token-0123456789abcdef0123456789
+      RABBITMQ_HOST: localhost
+      RABBITMQ_USER: slicepizza
+      RABBITMQ_PASSWORD: slicepizza
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: api/.python-version
+
+      - name: Install the API and the worker (lock files, hashes checked)
+        run: |
+          python -m venv /tmp/api-venv
+          /tmp/api-venv/bin/pip install --quiet --require-hashes "--only-binary=:all:" -r api/requirements.txt
+          python -m venv /tmp/worker-venv
+          /tmp/worker-venv/bin/pip install --quiet --require-hashes "--only-binary=:all:" -r worker/requirements.txt
+
+      - name: Start the fake Telegram, the API and the worker
+        run: |
+          nohup python3 .github/scripts/fake_telegram.py 8081 > fake-telegram.log 2>&1 &
+          cd api
+          POSTGRES_HOST=localhost POSTGRES_USER=slicepizza POSTGRES_PASSWORD=slicepizza POSTGRES_DB=slicepizza_e2e \
+            nohup /tmp/api-venv/bin/uvicorn app.main:app --port 8000 > ../api.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/health && break; sleep 1; done
+          cd ../worker
+          TELEGRAM_BOT_TOKEN=123:ci TELEGRAM_API_URL=http://127.0.0.1:8081 TELEGRAM_PIZZERIA_CHAT_ID=-100999 \
+            API_URL=http://127.0.0.1:8000 \
+            nohup /tmp/worker-venv/bin/python -m app.main > ../worker.log 2>&1 &
+          sleep 3
+
+      - name: Follow an order on Telegram
+        run: python3 .github/scripts/e2e_telegram_optin.py
+
+      - name: Logs
+        if: always()
+        run: |
+          echo "--- API"; cat api.log
+          echo "--- worker"; cat worker.log
+          echo "--- fake Telegram"; cat fake-telegram.log
+
   docker-smoke:
     name: docker compose smoke test
     runs-on: ubuntu-latest
