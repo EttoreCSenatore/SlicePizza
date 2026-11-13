@@ -112,7 +112,9 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Images in docker-compose.yml (postgres, rabbitmq).
+  # Images in docker-compose.yml (postgres, rabbitmq). Dependabot only edits that file: when
+  # it bumps rabbitmq, also bump the CI service in .github/workflows/ci.yml (worker tests)
+  # and docs/DEPLOY.md, so the worker is tested against the version it runs with.
   - package-ecosystem: docker-compose
     directory: /
     schedule:

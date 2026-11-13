@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       rabbitmq:
-        image: rabbitmq:4.3.4-management-alpine
+        image: rabbitmq:4.4.0-management-alpine
         env:
           RABBITMQ_DEFAULT_USER: slicepizza
           RABBITMQ_DEFAULT_PASS: slicepizza
