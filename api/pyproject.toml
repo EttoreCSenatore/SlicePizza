@@ -3,3 +3,10 @@
 # on sys.path even when pytest is invoked through its console script.
 pythonpath = ["."]
 testpaths = ["tests"]
+# Any warning fails the tests, so a deprecation shows up in the PR that causes
+# it (often a Dependabot PR) instead of piling up. "error" and not
+# "error::DeprecationWarning": Starlette's StarletteDeprecationWarning is a
+# UserWarning, and that is how httpx's deprecation went unnoticed (issue #24).
+# To accept a warning on purpose, add a narrow "ignore:<message>:<Category>"
+# line below with a comment saying why.
+filterwarnings = ["error"]
