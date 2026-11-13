@@ -79,7 +79,7 @@ SlicePizza/
    ```bash
    cp .env.example .env
    ```
-2. Build and start the API, Postgres and the menu website:
+2. Build and start everything (menu website, API, Postgres, RabbitMQ and the notification worker):
    ```bash
    docker compose up --build
    ```
@@ -113,7 +113,7 @@ Open the menu website at <http://localhost:8080>: pick pizzas, place an order an
 
 Interactive API docs: <http://localhost:8080/api/docs>.
 
-RabbitMQ's management UI runs at <http://localhost:15672> (user and password: `RABBITMQ_USER` / `RABBITMQ_PASSWORD` from `.env`). Every order and status change publishes an event to the `slicepizza.events` exchange ([ADR 0004](docs/adr/0004-order-events-outbox-rabbitmq.md)).
+RabbitMQ's management UI runs at <http://localhost:15672> (user and password: `RABBITMQ_USER` / `RABBITMQ_PASSWORD` from `.env`). Every order and status change publishes an event to the `slicepizza.events` exchange ([ADR 0004](docs/adr/0004-order-events-outbox-rabbitmq.md)). The notification worker sends them to Telegram, or writes them to its log when no bot is configured: `docker compose logs -f worker` (see [worker/README.md](worker/README.md)).
 
 The database lives in the `slicepizza_pgdata` named volume, so orders survive `docker compose down` followed by `docker compose up`. Use `docker compose down -v` only when you want to wipe the data.
 
@@ -130,6 +130,8 @@ source .venv/bin/activate
 pip install --require-hashes -r requirements-dev.txt
 pytest
 ```
+
+The worker has its own tests, the same way, from `worker/` (see [worker/README.md](worker/README.md#tests)).
 
 ## Documentation
 

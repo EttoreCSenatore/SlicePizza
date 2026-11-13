@@ -58,8 +58,8 @@ Check the boxes as you make progress.
 
 - [x] Add RabbitMQ to `docker-compose.yml`
 - [x] The API publishes an event to the queue when an order's status changes (through an outbox, [ADR 0004](adr/0004-order-events-outbox-rabbitmq.md))
-- [ ] Create the worker in `worker/` that consumes the queue
-- [ ] Create a Telegram bot and send the notification from the worker
+- [x] Create the worker in `worker/` that consumes the queue ([ADR 0005](adr/0005-notification-worker.md))
+- [ ] Create a Telegram bot and send the notification from the worker (the pizzeria chat works; customers next)
 - [ ] Build the kitchen dashboard (`admin.yourdomain.com`)
 
 **Done when:** if you take the worker down, messages wait in the queue and are sent when it comes back.

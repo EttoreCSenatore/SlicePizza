@@ -26,7 +26,7 @@ services:
       retries: 10
 
   # Message broker for order events (Phase 3, ADR 0004). The API publishes to
-  # it; consumers (the worker, next) read from their own queues.
+  # it; consumers (the worker) read from their own queues.
   rabbitmq:
     image: rabbitmq:4.3.4-management-alpine
     restart: unless-stopped
@@ -100,6 +100,38 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # Notification worker (Phase 3, ADR 0005): reads order events from its
+  # RabbitMQ queue and sends Telegram messages. Without TELEGRAM_BOT_TOKEN it
+  # writes them to its log instead (docker compose logs worker).
+  worker:
+    build: ./worker
+    restart: unless-stopped
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_PIZZERIA_CHAT_ID: ${TELEGRAM_PIZZERIA_CHAT_ID:-}
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      # No HTTP port: the worker touches a file every second while it is
+      # connected and working. Older than 30 s means stuck or disconnected.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/worker-alive') > 30)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # The way in: Caddy serves the menu site on http://localhost:8080 and
   # forwards http://localhost:8080/api/* to the API. The same image runs on

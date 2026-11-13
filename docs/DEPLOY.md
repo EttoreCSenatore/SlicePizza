@@ -27,7 +27,8 @@ https://slicepizza.senatore.tech ──► server proxy (HTTPS) ──► web:80
 | `api` | `slicepizza-api` ([`api/`](../api/)) | No: only `web` reaches it | `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`, plus the database variables below |
 
 | `db` | `postgres:16-alpine` | No: only `api` reaches it | See [Database](#database) |
-| `rabbitmq` | `rabbitmq:4.3.4-management-alpine` | No: only `api` (and the worker, next) reach it | See [RabbitMQ](#rabbitmq) |
+| `rabbitmq` | `rabbitmq:4.3.4-management-alpine` | No: only `api` and `worker` reach it | See [RabbitMQ](#rabbitmq) |
+| `worker` | `slicepizza-worker` ([`worker/`](../worker/)) | No: no port at all, it only connects out (RabbitMQ, Telegram) | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_PIZZERIA_CHAT_ID`. See [Worker](#worker) |
 
 Both trust the forwarding headers of the proxy in front of them: Caddy those of the server's proxy (from private addresses, see the Caddyfile), and the API those of Caddy (also from private addresses only). That way the access logs show the customer's IP, and links and redirects the API generates keep `https`.
 
@@ -74,12 +75,22 @@ Order events go from the API to RabbitMQ through the outbox ([ADR 0004](adr/0004
 | User | `RABBITMQ_DEFAULT_USER` / `RABBITMQ_DEFAULT_PASS` on the RabbitMQ container: a strong, random password, stored on the server. Created on first boot only |
 | API variables | `RABBITMQ_HOST` (the service name), `RABBITMQ_USER`, `RABBITMQ_PASSWORD`; optionally `RABBITMQ_PORT` (5672) and `RABBITMQ_VHOST` (`/`) |
 
-**Until the worker is deployed** (the next Phase 3 step), events have no queue to go to. Either way nothing is lost; the difference is only in the logs:
+**Deploy RabbitMQ and the worker together.** Until the worker has declared its queue, events have nowhere to go: nothing is lost (they wait in `order_events`), but with `RABBITMQ_HOST` set the API logs a warning on every retry.
 
-- With `RABBITMQ_HOST` set, the API logs a warning on every retry (every 30 s at most) that no queue is bound.
-- Without it, the API logs one line at startup and the events simply wait.
+## Worker
 
-So it is fine to add RabbitMQ and the worker to the server together.
+The notification worker ([`worker/`](../worker/), [ADR 0005](adr/0005-notification-worker.md)) reads order events from its queue and sends Telegram messages. It has no port and no domain.
+
+| Item | On the server |
+|---|---|
+| Image | `ghcr.io/senatoreteam/slicepizza-worker:latest`, updated automatically like the others |
+| Network | The project's network, to reach `rabbitmq`. It also needs outgoing HTTPS to `api.telegram.org` |
+| Variables | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` (the same user as the API), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_PIZZERIA_CHAT_ID` |
+| Secrets | The bot token is a password: stored on the server only, never in Git |
+| Health | Healthy while `/tmp/worker-alive` is less than 30 s old (see `docker-compose.yml`) |
+| Restarts | Safe at any time: a message is acknowledged only after it was sent; an interrupted one goes back to the queue |
+
+How to create the bot and find the chat id: [worker/README.md](../worker/README.md#setting-up-telegram). Without `TELEGRAM_BOT_TOKEN` the worker only logs the messages, which is a safe way to deploy it first and add the bot afterwards.
 
 ## Checking the deploy
 
@@ -90,13 +101,15 @@ So it is fine to add RabbitMQ and the worker to the server together.
 
 ## One-time setup
 
-1. After the first image of each kind is published, make the packages public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api` and `slicepizza-web` → **Package settings** → **Change visibility** → Public. (The server downloads them without a password.) Only organization owners can change it.
+1. After the first image of each kind is published, make the packages public: GitHub → **SenatoreTeam** organization → **Packages** → `slicepizza-api`, `slicepizza-web` and `slicepizza-worker` → **Package settings** → **Change visibility** → Public. (The server downloads them without a password.) Only organization owners can change it.
 2. On the server (in the project's compose in Dokploy):
    - Postgres: the `db` container and its volume (see [Database](#database)).
    - `api`: `ghcr.io/senatoreteam/slicepizza-api:latest`, with the database variables, `UVICORN_ROOT_PATH=/api` and `UVICORN_FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`. **No domain.**
    - `web`: `ghcr.io/senatoreteam/slicepizza-web:latest`, on the same network as `api`, with `API_UPSTREAM` set to the API's service name and port (e.g. `api:8000`).
    - Route `slicepizza.senatore.tech` to `web` on port **8080** (`senatore.tech` and `www.senatore.tech` too, if they should keep showing the system).
    - Add the `web` image to the automatic update, like the API's.
+   - `rabbitmq` with a fixed hostname and its volume, and `RABBITMQ_*` on `api` (see [RabbitMQ](#rabbitmq)).
+   - `worker`: `ghcr.io/senatoreteam/slicepizza-worker:latest` with its variables (see [Worker](#worker)), in the automatic update too.
 3. Point the domains' DNS to the server: `A slicepizza → 179.66.139.4`, `A @ → 179.66.139.4` and `CNAME www → senatore.tech` (optionally `AAAA → 2a02:4780:95:91b7::1`). The HTTPS certificate is issued automatically once the DNS points there; if the proxy tried before that, restart the `web` container so it tries again.
 
 ### Moving from the API-only setup

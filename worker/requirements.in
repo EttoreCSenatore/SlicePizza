@@ -1,0 +1,7 @@
+# Direct dependencies of the worker, as version ranges. Edit this file, never
+# requirements.txt: that one is generated from it, with exact versions and
+# hashes (see "Dependencies" in README.md).
+#
+# Telegram is called with the standard library (urllib), so RabbitMQ's client
+# is the only dependency.
+pika>=1.4.4,<2.0

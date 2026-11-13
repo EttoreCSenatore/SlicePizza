@@ -1,0 +1,25 @@
+# Builds the notification worker image (worker/, ADR 0005; the steps are in
+# build-image.yml). On a Pull Request it only checks that the image builds; on main
+# it publishes ghcr.io/senatoreteam/slicepizza-worker, and the server picks up the
+# new :latest within 5 minutes (see docs/DEPLOY.md).
+name: Worker image
+
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/worker-image.yml", ".github/workflows/build-image.yml"]
+  pull_request:
+    paths: ["worker/**", ".github/workflows/worker-image.yml", ".github/workflows/build-image.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      image: ghcr.io/senatoreteam/slicepizza-worker
+      context: worker
+      file: worker/Dockerfile

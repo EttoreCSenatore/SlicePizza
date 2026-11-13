@@ -1,0 +1,5 @@
+# Test dependencies, on top of the worker's. Edit this file, never
+# requirements-dev.txt (see "Dependencies" in README.md).
+-c requirements.txt
+-r requirements.in
+pytest>=9.2.0,<10.0
