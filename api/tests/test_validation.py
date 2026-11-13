@@ -69,7 +69,7 @@ def test_nul_character_is_rejected(client, field):
 @pytest.mark.parametrize("field", ["name", "phone", "address"])
 def test_lone_surrogate_is_rejected(client, field):
     # JSON accepts "\ud800", but it is not valid Unicode and cannot be stored.
-    # json.dumps escapes it as \ud800 (httpx's json= would fail to encode it).
+    # json.dumps escapes it as \ud800 (the test client's json= would fail to encode it).
     body = json.dumps(order_with(**{field: "a\ud800b"}))
 
     response = client.post(
